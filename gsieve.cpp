@@ -25,8 +25,7 @@ void GSieve::SampleReduce(LatticeVector *p){
     }
 }
 
-void GSieve::SampleReduce_Parallel(){
-    
+void GSieve::SampleReduce_Parallel(){   
     vector<bool> vec_change(V.size(), false);
     int num_parallel = V.size() / concurrency;
     int num_remain = V.size() % concurrency;
