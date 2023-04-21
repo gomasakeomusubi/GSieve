@@ -1,1 +1,14 @@
 GS_P vec:1, samp:1  869002 ms
+
+V <- L
+|L|:145|V|:53|S|:27
+
+V -> L
+|L|:1|V|:79|S|:1
+Segmentation fault
+
+V <- L
+|L|:341|V|:52|S|:33
+
+V <- L
+|L|:305|V|:54|S|:63

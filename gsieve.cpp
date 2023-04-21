@@ -27,57 +27,36 @@ void GSieve::SampleReduce(LatticeVector *p){
 
 void GSieve::SampleReduce_Parallel(){
     vector<bool> vec_change(V.size(), false);
-    int num_parallel = V.size() / concurrency;
-    int num_remain = V.size() % concurrency;
+    int num_parallel = ceil((double)V.size() / concurrency);
+    int num_vectors_V = V.size();
+    int num_vectors = 0;
 
     // 各スレッドにnum_parallel個のベクトルを分配
     // 排他制御なし並列処理
     vector<thread> threads;
     for(int i = 0; i < concurrency; i++){
+        num_vectors = min(num_parallel, num_vectors_V);
+        num_vectors_V -= num_vectors;
+
         threads.emplace_back(
-            [&vec_change, i, this](int num){
+            [&vec_change, i, num_parallel, this](int num){
                 for(int j = 0; j < num; j++){
                     LatticeVector *lv = newLatticeVector(getBasis().NumRows());
-                    lv->vec = V[i * num + j]->vec;
-                    lv->norm2 = V[i * num + j]->norm2;
+                    lv->vec = V[i*num_parallel+j]->vec;
+                    lv->norm2 = V[i*num_parallel+j]->norm2;
 
-                    SampleReduce(V[i * num + j]);
+                    SampleReduce(V[i*num_parallel+j]);
 
-                    if(lv->vec != V[i * num + j]->vec){
-                        vec_change[i * num + j] = true;
+                    if(lv->vec != V[i*num_parallel+j]->vec){
+                        vec_change[i*num_parallel+j] = true;
                     }
 
                     delete lv;
                 }
-            }, num_parallel
+            }, num_vectors
         );
     }
     for(thread &th : threads){
-        th.join();
-    }
-
-    // 残りのベクトルを処理
-    // 排他制御なし並列処理     <-- concurrency以下のベクトルしか扱わないので非並列の方が早いかも...
-    vector<thread> threads2;
-    int index_remain = V.size() - num_remain;
-    for(int i = 0; i < num_remain; i++){
-        threads2.emplace_back(
-            [&vec_change, index_remain, this](int num){
-                LatticeVector *lv = newLatticeVector(getBasis().NumRows());
-                lv->vec = V[index_remain + num]->vec;
-                lv->norm2 = V[index_remain + num]->norm2;
-
-                SampleReduce(V[index_remain + num]);
-
-                if(lv->vec != V[index_remain + num]->vec){
-                    vec_change[index_remain + num] = true;
-                }
-
-                delete lv;
-            }, i
-        );
-    }
-    for(thread &th : threads2){
         th.join();
     }
 
