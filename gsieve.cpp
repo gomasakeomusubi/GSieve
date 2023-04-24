@@ -5,9 +5,31 @@
 NTL_CLIENT
 
 void GSieve::Setup(){
-    min_vector = newLatticeVector(B.NumRows());
-    min_vector->vec = B[0];
-    min_vector->norm2 = norm2(min_vector->vec);
+    n_ = B.NumRows();
+    m_ = B.NumCols();
+    iterations_ = 0;
+    collisions_ = 0;
+    sample_vectors_ = 0;
+    CleanUp();
+
+    min_vector_ = newLatticeVector(m_);
+    min_vector_->vec = B[0];
+    min_vector_->norm2 = norm2(B[0]);
+    LatticeVector* lv;
+    for(int i = 0; i < n_; i++){
+        lv = newLatticeVector(m_);
+        lv->vec = B[i];
+        lv->norm2 = norm2(B[i]);
+        GaussReduce(lv);
+        if(lv->norm2 < min_vector_->norm2){
+            min_vector_->vec = lv->vec;
+            min_vector_->norm2 = lv->norm2;
+        }
+    }
+    cout << L.size() << "," << sample_vectors_ << "," << iterations_ << "," << collisions_ << endl;
+    max_list_size_ = L.size();
+    concurrency_ = 1;
+    simu_samp_ = 1;
 }
 
 void GSieve::SampleReduce(LatticeVector *p){
@@ -27,21 +49,21 @@ void GSieve::SampleReduce(LatticeVector *p){
 
 void GSieve::SampleReduce_Parallel(){
     vector<bool> vec_change(V.size(), false);
-    int num_parallel = ceil((double)V.size() / concurrency);
+    int num_parallel = ceil((double)V.size() / concurrency_);
     int num_vectors_V = V.size();
     int num_vectors = 0;
 
     // 各スレッドにnum_parallel個のベクトルを分配
     // 排他制御なし並列処理
     vector<thread> threads;
-    for(int i = 0; i < concurrency; i++){
+    for(int i = 0; i < concurrency_; i++){
         num_vectors = min(num_parallel, num_vectors_V);
         num_vectors_V -= num_vectors;
 
         threads.emplace_back(
             [&vec_change, i, num_parallel, this](int num){
                 for(int j = 0; j < num; j++){
-                    LatticeVector *lv = newLatticeVector(getBasis().NumRows());
+                    LatticeVector *lv = newLatticeVector(m_);
                     lv->vec = V[i*num_parallel+j]->vec;
                     lv->norm2 = V[i*num_parallel+j]->norm2;
 
@@ -86,12 +108,12 @@ void GSieve::ListReduce(LatticeVector *p){
 
 void GSieve::ListReduce_Parallel(){
     vector<bool> vec_change(L.size(), false);
-    int num_parallel = L.size() / concurrency;
-    int num_remain = L.size() % concurrency;
+    int num_parallel = L.size() / concurrency_;
+    int num_remain = L.size() % concurrency_;
 
     // 各スレッドにnum_parallel個のベクトルを分配
     vector<thread> threads;
-    for(int i = 0; i < concurrency; i++){
+    for(int i = 0; i < concurrency_; i++){
         threads.emplace_back(
             [&vec_change, i, this](int num){
                 for(int j = 0; j < num; j++){
@@ -113,7 +135,7 @@ void GSieve::ListReduce_Parallel(){
 
     // 余ったベクトルは本スレッドで
     int l_sz = L.size();
-    for(int l_id = concurrency * num_parallel; l_id < l_sz; l_id++){
+    for(int l_id = concurrency_ * num_parallel; l_id < l_sz; l_id++){
         for(int v_id = 0; v_id < V.size(); v_id++){
             if(L[l_id]->norm2 < V[v_id]->norm2){
                 continue;
@@ -138,7 +160,7 @@ void GSieve::ListReduce_Parallel(){
 void GSieve::VectorReduce_Parallel(){
     vector<LatticeVector*> Tmp;
     for(int i = 0; i < V.size(); i++){
-        LatticeVector *lv = newLatticeVector(getBasis().NumRows());
+        LatticeVector *lv = newLatticeVector(m_);
         lv->vec = V[i]->vec;
         lv->norm2 = V[i]->norm2;
         Tmp.emplace_back(lv);
@@ -146,12 +168,12 @@ void GSieve::VectorReduce_Parallel(){
     cout << 111 << endl;
 
     vector<bool> vec_change(V.size(), false);
-    int num_parallel = V.size() / concurrency;
-    int num_remain = V.size() % concurrency;
+    int num_parallel = V.size() / concurrency_;
+    int num_remain = V.size() % concurrency_;
 
     // 各スレッドにnum_parallel個のベクトルを分配
     vector<thread> threads;
-    for(int i = 0; i < concurrency; i++){
+    for(int i = 0; i < concurrency_; i++){
         threads.emplace_back(
             [&vec_change, i, this, &Tmp](int num){
                 for(int j = 0; j < num; j++){
@@ -174,7 +196,7 @@ void GSieve::VectorReduce_Parallel(){
 
     // 余ったベクトルは本スレッドで
     int tmp_sz = Tmp.size();
-    for(int tmp_id = concurrency * num_parallel; tmp_id < tmp_sz; tmp_id++){
+    for(int tmp_id = concurrency_ * num_parallel; tmp_id < tmp_sz; tmp_id++){
         for(int v_id = 0; v_id < V.size(); v_id++){
             if(tmp_id == v_id) continue;
             if(Tmp[tmp_id]->norm2 < V[v_id]->norm2){
@@ -205,8 +227,12 @@ void GSieve::GaussReduce(LatticeVector *p){
     // p <- L
     SampleReduce(p);
 
+    if(p->norm2 == 0) return;
+
     // p -> L
     ListReduce(p);
+
+    L.emplace_back(p);
 }
 
 void GSieve::GaussReduce_Parallel(){
@@ -247,26 +273,22 @@ void GSieve::GaussReduce_Parallel(){
     ListReduce_Parallel();
 }
 
-LatticeVector *GSieve::GaussSieve(vector<double> &chk_time, long &num_sample, long &cnt){
+LatticeVector *GSieve::GaussSieve(vector<double> &chk_time){
     chrono::system_clock::time_point start, end;
-    Setup();
 
-    ZZ K; K = 0;
-    // int cnt = 0;
-    int max_list_size = 1;
     double time1 = 0, time2 = 0, time3 = 0;
-    while(K < max_list_size/10+200 && min_vector->norm2 > thresh){
+    while(collisions_ < max_list_size_/10+200 && min_vector_->norm2 > goal_norm2_){
         // time1
         start = chrono::system_clock::now();
-        max_list_size = std::max(max_list_size, int(L.size()));
+        max_list_size_ = std::max(max_list_size_, (long)L.size());
 
-        LatticeVector *new_v = newLatticeVector(B.NumRows());
+        LatticeVector *new_v = newLatticeVector(m_);
         if(!S.empty()){
             new_v = S.front();
             S.pop();
         }else{
             sample::sample(B, new_v);
-            num_sample++;
+            sample_vectors_++;
         }
         end = chrono::system_clock::now();
         time1 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
@@ -282,18 +304,18 @@ LatticeVector *GSieve::GaussSieve(vector<double> &chk_time, long &num_sample, lo
         // time3
         start = chrono::system_clock::now();
         if(new_v->norm2 == 0){
-            K++;
+            delete new_v;
+            collisions_++;
         }else{
-            L.emplace_back(new_v);
-            if(new_v->norm2 < min_vector->norm2){
-                min_vector->norm2 = new_v->norm2;
-                min_vector->vec = new_v->vec;
+            if(new_v->norm2 < min_vector_->norm2){
+                min_vector_->norm2 = new_v->norm2;
+                min_vector_->vec = new_v->vec;
             }
         }
         end = chrono::system_clock::now();
         time3 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
-        cnt++;
+        iterations_++;
     }
 
     cout << "time1: " << time1 << endl;
@@ -303,27 +325,24 @@ LatticeVector *GSieve::GaussSieve(vector<double> &chk_time, long &num_sample, lo
     chk_time.push_back(time2);
     chk_time.push_back(time3);
 
-    return min_vector;
+    return min_vector_;
 }
 
-LatticeVector *GSieve::GaussSieve_Parallel(vector<double> &chk_time, long &num_sample, long &cnt){
+LatticeVector *GSieve::GaussSieve_Parallel(vector<double> &chk_time){
     chrono::system_clock::time_point start, end;
-    Setup();
 
     ZZ K; K = 0;
-    // int cnt = 0;
     int max_list_size = 1;
     double time1 = 0, time2 = 0, time3 = 0;
-    while(K < max_list_size/10+200 && min_vector->norm2 > thresh){
+    while(K < max_list_size/10+200 && min_vector_->norm2 > goal_norm2_){
         // time1
         start = chrono::system_clock::now();
-        // cout << cnt << "." << flush;
         max_list_size = std::max(max_list_size, int(L.size()));
-        LatticeVector *new_v = newLatticeVector(B.NumRows());
+        LatticeVector *new_v = newLatticeVector(m_);
         if(!S.empty()){
-            if(simu_samp > S.size()){
-                sample::sample_set(B, V, simu_samp-S.size());
-                num_sample += simu_samp-S.size();
+            if(simu_samp_ > S.size()){
+                sample::sample_set(B, V, simu_samp_-S.size());
+                sample_vectors_ += simu_samp_-S.size();
                 while(!S.empty()){
                     new_v = S.front();
                     V.push_back(new_v);
@@ -331,15 +350,15 @@ LatticeVector *GSieve::GaussSieve_Parallel(vector<double> &chk_time, long &num_s
                 }
             }
             else{
-                for(int i = 0; i < simu_samp; i++){
+                for(int i = 0; i < simu_samp_; i++){
                     new_v = S.front();
                     V.push_back(new_v);
                     S.pop();
                 }
             }
         }else{
-            sample::sample_set(B, V, simu_samp);
-            num_sample += simu_samp;
+            sample::sample_set(B, V, simu_samp_);
+            sample_vectors_ += simu_samp_;
         }
         end = chrono::system_clock::now();
         time1 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
@@ -364,9 +383,9 @@ LatticeVector *GSieve::GaussSieve_Parallel(vector<double> &chk_time, long &num_s
                 K++;
             }else{
                 L.emplace_back(itr_V);
-                if(itr_V->norm2 < min_vector->norm2){
-                    min_vector->norm2 = itr_V->norm2;
-                    min_vector->vec = itr_V->vec;
+                if(itr_V->norm2 < min_vector_->norm2){
+                    min_vector_->norm2 = itr_V->norm2;
+                    min_vector_->vec = itr_V->vec;
                 }
             }
         }
@@ -377,14 +396,14 @@ LatticeVector *GSieve::GaussSieve_Parallel(vector<double> &chk_time, long &num_s
         // cout << "[c]." << L.size() << "." << S.size() << "." << V.size() << "." << K << "_" << endl;
 
         if(!(K < max_list_size/10+200)) cout << "cond 1:" << K << endl;
-        if(!(min_vector->norm2 > thresh)) cout << "cond 2:" << min_vector->norm2 << endl;
+        if(!(min_vector_->norm2 > goal_norm2_)) cout << "cond 2:" << min_vector_->norm2 << endl;
 
-        cnt++;
+        iterations_++;
     }
 
     chk_time.push_back(time1);
     chk_time.push_back(time2);
     chk_time.push_back(time3);
 
-    return min_vector;
+    return min_vector_;
 }

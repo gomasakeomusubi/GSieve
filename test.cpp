@@ -12,8 +12,8 @@ int main(){
     ifstream ifs;
     mat_ZZ B;
 
-    oss.str("");
-    oss << "inpute.txt";
+    char filename[] = "input.txt";
+    oss << filename;
     ifs.open(oss.str(), ios::in);
     if(ifs.is_open()){
         ifs >> B;

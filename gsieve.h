@@ -18,38 +18,45 @@ NTL_CLIENT
 class GSieve{
     private:
         mat_ZZ B;
+        long n_;
+        long m_;
         vector<LatticeVector*> L, V;
         queue<LatticeVector*> S;
-        LatticeVector *min_vector;
-        ZZ thresh;
-        int simu_samp;      // 一度のループで初めにサンプルする数。固定。
-        int concurrency;
+        LatticeVector *min_vector_;
+        ZZ goal_norm2_;
+        int simu_samp_;      // 一度のループで初めにサンプルする数。固定。
+        int concurrency_;
+        void SampleReduce(LatticeVector *p);
+        void SampleReduce_Parallel();
+        void ListReduce(LatticeVector *p);
+        void ListReduce_Parallel();
+        void VectorReduce_Parallel();
+        void GaussReduce(LatticeVector *p);
+        void GaussReduce_Parallel();
+        long max_list_size_;
+        long collisions_;
+        long iterations_;
+        long sample_vectors_;
     public:
-        GSieve(mat_ZZ B, ZZ thresh, int simu_samp, int concurrency) :B(B), thresh(sqr(thresh)), simu_samp(simu_samp), concurrency(concurrency){}
+        GSieve(mat_ZZ B) :B(B){}
         ~GSieve(){
+            CleanUp();
+        }
+        void CleanUp(){
             deleteList(L);
             deleteList(V);
             deleteQueue(S);
         }
         void Setup();
+        void SetConcurrency(long num){ concurrency_ = num; }
+        void SetSimultaneousSamples(long num){ simu_samp_ = num; }
 
-        void SampleReduce(LatticeVector *p);
-        void SampleReduce_Parallel();
+        LatticeVector *GaussSieve(vector<double> &chk_time);
+        LatticeVector *GaussSieve_Parallel(vector<double> &chk_time);
 
-        void ListReduce(LatticeVector *p);
-        void ListReduce_Parallel();
-
-        void VectorReduce_Parallel();
-
-        void GaussReduce(LatticeVector *p);
-        void GaussReduce_Parallel();
-
-        LatticeVector *GaussSieve(vector<double> &chk_time, long &num_sample, long &cnt);
-        LatticeVector *GaussSieve_Parallel(vector<double> &chk_time, long &num_sample, long &cnt);
-        
-        mat_ZZ getBasis(){ return B; }
-        long getLsize(){ return L.size(); }
-        long getSsize(){ return S.size(); }
+        long getIterations(){ return iterations_; }
+        long getSampleVectors(){ return sample_vectors_; }
+        ZZ getMinNorm2(){ return min_vector_->norm2; }
 };
 
 #endif

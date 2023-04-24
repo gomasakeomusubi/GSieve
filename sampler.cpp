@@ -18,9 +18,8 @@ long KleinSampler::SampleZ(RR c_, RR s_square_){
 }
 
 void KleinSampler::Init(const mat_ZZ &B){
-    cout << "aaa" << endl;
+    B_ = B;
     n_ = B.NumRows();
-    cout << "bbb" << endl;
     m_ = B.NumCols();
     vec_RR Bstar_square;
     ComputeGS(B, mu_, Bstar_square);
