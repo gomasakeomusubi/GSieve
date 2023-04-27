@@ -9,15 +9,16 @@
 #include <NTL/LLL.h>
 #include <chrono>
 
-#include "sample.h"
+#include "sampler.h"
 #include "gsieve.h"
+#include "math.h"
 #include "tool.h"
 
 NTL_CLIENT
 
 int main(int argc, char** argv){
     char *filename = NULL;
-    ZZ goal_norm2; goal_norm2 = 0;
+    long goal_norm = 0;
     int concurrency = 1;
     int simu_samp = 1;
 
@@ -25,7 +26,7 @@ int main(int argc, char** argv){
     while((option = getopt(argc, argv, "f:g:c:s:")) != -1){
         switch(option){
             case 'f': filename = optarg; break;
-            case 'g': goal_norm2 = to_ZZ(atol(optarg)); break;
+            case 'g': goal_norm = atol(optarg); break;
             case 'c': concurrency = atoi(optarg); break;
             case 's': simu_samp = atoi(optarg); break;
         }
@@ -46,9 +47,8 @@ int main(int argc, char** argv){
     ZZ det2;
     LLL(det2, B, 99, 100, 0);
 
-    LatticeVector* v = newLatticeVector(B.NumRows());
     int exp_time = 1;   // 繰り返し回数
-    vector<string> index = {"time(ms)", "time1(ms)", "time2(ms)", "time3(ms)", "sample_vectors", "loop", "norm"};        // 評価項目
+    vector<string> index = {"time(ms)", "list_size", "sample_vectors", "collisions", "iterations", "norm"};        // 評価項目
     vector<int> list_concurrency = {12};
     vector<int> list_simu_samp = {10, 20, 40, 80, 160};
     int size_index = (int)index.size();
@@ -58,59 +58,62 @@ int main(int argc, char** argv){
     // GS
     vector<double> rec1[size_index];
     for(int i = 0; i < exp_time; i++){
-        GSieve *gs = new GSieve(B);
-        gs->Setup();
-        vector<double> chk_time;
+        KleinSampler sampler;
+        GSieve gs;
+
+        gs.Init(B, &sampler);
+
+        gs.SetGoalNorm(goal_norm);
 
         start = chrono::system_clock::now();
-        v = gs->GaussSieve(chk_time);
+        gs.GaussSieve();
         end = chrono::system_clock::now();
         double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
-        rec1[0].emplace_back(elapsed);
-        rec1[1].emplace_back(chk_time[0]);
-        rec1[2].emplace_back(chk_time[1]);
-        rec1[3].emplace_back(chk_time[2]);
-        rec1[4].emplace_back(gs->getSampleVectors());
-        rec1[5].emplace_back(gs->getIterations());
-        rec1[6].emplace_back(sqrt(to_double(gs->getMinNorm2())));
+        ListPoint* lp = gs.getMinVec();
+        cout << "vec: " << lp->v << endl << "norm: " << lp->norm << "/" << sqrt(lp->norm) << endl;
 
-        delete gs;
+        // vector<double> chk_time = gs.getChkTime();
+        rec1[0].emplace_back(elapsed);
+        rec1[1].emplace_back(gs.getListSize());
+        rec1[2].emplace_back(gs.getSampleVectors());
+        rec1[3].emplace_back(gs.getCollisions());
+        rec1[4].emplace_back(gs.getIterations());
+        rec1[5].emplace_back(gs.getMinVec()->norm);
     }
     string denotes = "dim," + to_string(B.NumRows());
     out2csv("GS_test", rec1, index, denotes);
-
+    
     #endif
 
     #if 0
     // GS_P
-    for(size_t j = 0; j < list_concurrency.size(); j++){
-        vector<double> rec2[size_index];
-        for(int i = 0; i < exp_time; i++){
-            GSieve *gs = new GSieve(B);
-            gs->Setup();
-            gs->SetConcurrency(12);
-            gs->SetSimultaneousSamples(80);
-            vector<double> chk_time;
+    for(int i = 0; i < exp_time; i++){
+        KleinSampler sampler;
+        GSieve gs;
 
-            start = chrono::system_clock::now();
-            v = gs->GaussSieve_Parallel(chk_time);
-            end = chrono::system_clock::now();
-            double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+        gs.Init(B, &sampler);
 
-            rec2[0].emplace_back(elapsed);
-            rec2[1].emplace_back(chk_time[0]);
-            rec2[2].emplace_back(chk_time[1]);
-            rec2[3].emplace_back(chk_time[2]);
-            rec2[4].emplace_back(gs->getSampleVectors());
-            rec2[5].emplace_back(gs->getIterations());
-            rec2[6].emplace_back(sqrt(to_double(gs->getMinNorm2())));
+        gs.SetGoalNorm(goal_norm);
+        gs.SetConcurrency(concurrency);
+        gs.SetSimultaneousSamples(simu_samp);
 
-            delete gs;
-        }
-        string denotes = "dim," + to_string(B.NumRows()) + ",sampling," + to_string(simu_samp) + ",concurrency," + to_string(list_concurrency[j]);
-        out2csv("GS_P_test", rec2, index, denotes);
+        start = chrono::system_clock::now();
+        gs.GaussSieve_Parallel();
+        end = chrono::system_clock::now();
+        double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+
+        rec2[0].emplace_back(elapsed);
+        rec2[1].emplace_back(chk_time[0]);
+        rec2[2].emplace_back(chk_time[1]);
+        rec2[3].emplace_back(chk_time[2]);
+        rec2[4].emplace_back(gs->getSampleVectors());
+        rec2[5].emplace_back(gs->getIterations());
+        rec2[6].emplace_back(sqrt(to_double(gs->getMinNorm2())));
     }
+    string denotes = "dim," + to_string(B.NumRows()) + ",sampling," + to_string(simu_samp) + ",concurrency," + to_string(list_concurrency[j]);
+    out2csv("GS_P_test", rec2, index, denotes);
+
     #endif
 
     return 0;

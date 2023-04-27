@@ -1,5 +1,5 @@
-#ifndef INCLUDE_GSIEVE
-#define INCLUDE_GSIEVE
+#ifndef __GSIEVE__
+#define __GSIEVE__
 
 #include <NTL/ZZ.h>
 #include <NTL/RR.h>
@@ -12,51 +12,52 @@
 #include <chrono>
 #include <thread>
 #include "tool.h"
+#include "sampler.h"
 
 NTL_CLIENT
 
 class GSieve{
     private:
-        mat_ZZ B;
         long n_;
         long m_;
-        vector<LatticeVector*> L, V;
-        queue<LatticeVector*> S;
-        LatticeVector *min_vector_;
-        ZZ goal_norm2_;
-        int simu_samp_;      // 一度のループで初めにサンプルする数。固定。
+        vector<ListPoint*> L;
+        vector<ListPoint*> V;
+        queue<ListPoint*> S;
+        KleinSampler* sampler_;
+        int64 goal_norm_;
+        int64 min_norm_;
+        int simu_samp_;
         int concurrency_;
-        void SampleReduce(LatticeVector *p);
-        void SampleReduce_Parallel();
-        void ListReduce(LatticeVector *p);
-        void ListReduce_Parallel();
-        void VectorReduce_Parallel();
-        void GaussReduce(LatticeVector *p);
-        void GaussReduce_Parallel();
+        // void SampleReduce_Parallel();
+        // void ListReduce_Parallel();
+        // void VectorReduce_Parallel();
+        int64 GaussReduce(ListPoint* p);
+        // void GaussReduce_Parallel();
+        // statistics
         long max_list_size_;
         long collisions_;
         long iterations_;
         long sample_vectors_;
+        // vector<double> chk_time_;
     public:
-        GSieve(mat_ZZ B) :B(B){}
         ~GSieve(){
             CleanUp();
         }
-        void CleanUp(){
-            deleteList(L);
-            deleteList(V);
-            deleteQueue(S);
-        }
-        void Setup();
+        void CleanUp();
+        void Init(const mat_ZZ &B, KleinSampler* sampler);
+        void SetGoalNorm(long norm){ goal_norm_ = norm; }
         void SetConcurrency(long num){ concurrency_ = num; }
         void SetSimultaneousSamples(long num){ simu_samp_ = num; }
 
-        LatticeVector *GaussSieve(vector<double> &chk_time);
-        LatticeVector *GaussSieve_Parallel(vector<double> &chk_time);
+        void GaussSieve();
+        // LatticeVector *GaussSieve_Parallel(vector<double> &chk_time);
 
         long getIterations(){ return iterations_; }
+        long getCollisions(){ return collisions_; }
+        long getListSize(){ return L.size(); }
         long getSampleVectors(){ return sample_vectors_; }
-        ZZ getMinNorm2(){ return min_vector_->norm2; }
+        ListPoint* getMinVec(){ return *L.begin(); }
+        // vector<double> getChkTime(){ return chk_time_; }
 };
 
 #endif

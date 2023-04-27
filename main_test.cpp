@@ -8,6 +8,7 @@
 #include <NTL/mat_ZZ.h>
 #include <NTL/LLL.h>
 #include <chrono>
+#include <time.h>
 
 #include "sample.h"
 #include "sampler.h"
@@ -50,16 +51,14 @@ int main(int argc, char** argv){
     KleinSampler sampler;
     sampler.Init(B);
 
-    LatticeVector* lv;
-    chrono::system_clock::time_point start, end;
-    start = chrono::system_clock::now();
+    LatticeVector* lp;
+    clock_t start = clock();
     for(int i = 0; i < 10000; i++){
-        lv = sampler.Sample();
+        lp = sampler.Sample();
     }
-    end = chrono::system_clock::now();
-    double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+    clock_t end = clock();
 
-    cout << elapsed << "ms" << endl;
+    cout << (double)(end-start)*1000/CLOCKS_PER_SEC << "ms" << endl;
 
     return 0;
 }
