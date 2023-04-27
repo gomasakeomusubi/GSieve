@@ -42,7 +42,7 @@ class GSieve{
     public:
         ~GSieve(){
             CleanUp();
-        } 
+        }
         void CleanUp();
         void Init(const mat_ZZ &B, KleinSampler* sampler);
         void SetGoalNorm(long norm){ goal_norm_ = norm; }

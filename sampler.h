@@ -10,7 +10,7 @@
 
 NTL_CLIENT
 
-class KleinSampler { 
+class KleinSampler {
     public:
         void Init(const mat_ZZ &B);
         ListPoint* Sample();

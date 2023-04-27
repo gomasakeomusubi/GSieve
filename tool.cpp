@@ -67,7 +67,7 @@ bool reduceVector(ListPoint *p1, const ListPoint *p2){
     }
     if(2 * abs(dot) <= p2->norm){
         return false;
-    } 
+    }
     long q = round((double)dot / p2->norm);
     for(int i = 0; i < dims; i++){
         p1->v[i] -= q * p2->v[i];

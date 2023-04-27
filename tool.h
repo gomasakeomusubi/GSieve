@@ -27,7 +27,7 @@ NTL_matrix_decl(double, vec_double, vec_vec_double, mat_double)
 struct ListPoint {
     vec_int64 v;
     int64 norm;
-}; 
+};
 
 ListPoint* NewListPoint(long dims);
 void DeleteListPoint(ListPoint* p);

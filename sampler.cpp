@@ -13,7 +13,7 @@ long KleinSampler::SampleZ(double c, double s_square){
             return x;
         }
     }
-} 
+}
 
 void KleinSampler::Init(const mat_ZZ &B){
     n_ = B.NumRows();

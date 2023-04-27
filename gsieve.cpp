@@ -167,7 +167,7 @@ void GSieve::Init(const mat_ZZ &B, KleinSampler* sampler){
 //             }, num_parallel
 //         );
 //     }
-//     for(thread &th : threads){ 
+//     for(thread &th : threads){
 //         th.join();
 //     }
 
