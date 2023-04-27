@@ -68,7 +68,7 @@ int main(int argc, char** argv){
         start = chrono::system_clock::now();
         gs.GaussSieve();
         end = chrono::system_clock::now();
-        double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+        double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000; 
 
         ListPoint* lp = gs.getMinVec();
         cout << "vec: " << lp->v << endl << "norm: " << lp->norm << "/" << sqrt(lp->norm) << endl;
