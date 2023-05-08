@@ -21,18 +21,16 @@ class GSieve{
         long n_;
         long m_;
         vector<ListPoint*> L;
-        vector<ListPoint*> V;
+        vector<ListPoint*> V, V_, V__;
         queue<ListPoint*> S;
         KleinSampler* sampler_;
         int64 goal_norm_;
         int64 min_norm_;
         int simu_samp_;
         int concurrency_;
-        // void SampleReduce_Parallel();
-        // void ListReduce_Parallel();
         // void VectorReduce_Parallel();
         int64 GaussReduce(ListPoint* p);
-        // void GaussReduce_Parallel();
+        int64 GaussReduce_Parallel();
         // statistics
         long max_list_size_;
         long collisions_;
@@ -50,8 +48,10 @@ class GSieve{
         void SetSimultaneousSamples(long num){ simu_samp_ = num; }
 
         void GaussSieve();
-        // LatticeVector *GaussSieve_Parallel(vector<double> &chk_time);
+        void GaussSieve_Parallel();
 
+        void printL();
+        void printV();
         long getIterations(){ return iterations_; }
         long getCollisions(){ return collisions_; }
         long getListSize(){ return L.size(); }

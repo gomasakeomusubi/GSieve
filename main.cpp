@@ -49,13 +49,14 @@ int main(int argc, char** argv){
 
     int exp_time = 1;   // 繰り返し回数
     vector<string> index = {"time(ms)", "list_size", "sample_vectors", "collisions", "iterations", "norm"};        // 評価項目
-    vector<int> list_concurrency = {12};
-    vector<int> list_simu_samp = {10, 20, 40, 80, 160};
+    vector<int> list_concurrency = {1, 2, 4, 6, 8, 12, 16, 20};
+    vector<int> list_simu_samp = {200, 240, 280};
     int size_index = (int)index.size();
     chrono::system_clock::time_point start, end;
 
-    #if 1
+    #if 0
     // GS
+    cout << "GS:" << endl;
     vector<double> rec1[size_index];
     for(int i = 0; i < exp_time; i++){
         KleinSampler sampler;
@@ -81,16 +82,19 @@ int main(int argc, char** argv){
         rec1[4].emplace_back(gs.getIterations());
         rec1[5].emplace_back(gs.getMinVec()->norm);
     }
-    string denotes = "dim," + to_string(B.NumRows());
-    out2csv("GS_test", rec1, index, denotes);
+    string denotes1 = "dim," + to_string(B.NumRows());
+    out2csv("GS_test", rec1, index, denotes1);
     
     #endif
 
-    #if 0
+    #if 1
     // GS_P
-    for(int i = 0; i < exp_time; i++){
+    cout << "GS_P:" << endl;
+    vector<double> rec2[size_index];
+    for(int i = 0; i < 8; i++){
         KleinSampler sampler;
         GSieve gs;
+        concurrency = 8;
 
         gs.Init(B, &sampler);
 
@@ -102,17 +106,19 @@ int main(int argc, char** argv){
         gs.GaussSieve_Parallel();
         end = chrono::system_clock::now();
         double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+        
+        ListPoint* lp = gs.getMinVec();
+        cout << "vec: " << lp->v << endl << "norm: " << lp->norm << "/" << sqrt(lp->norm) << endl;
 
         rec2[0].emplace_back(elapsed);
-        rec2[1].emplace_back(chk_time[0]);
-        rec2[2].emplace_back(chk_time[1]);
-        rec2[3].emplace_back(chk_time[2]);
-        rec2[4].emplace_back(gs->getSampleVectors());
-        rec2[5].emplace_back(gs->getIterations());
-        rec2[6].emplace_back(sqrt(to_double(gs->getMinNorm2())));
+        rec2[1].emplace_back(gs.getListSize());
+        rec2[2].emplace_back(gs.getSampleVectors());
+        rec2[3].emplace_back(gs.getCollisions());
+        rec2[4].emplace_back(gs.getIterations());
+        rec2[5].emplace_back(gs.getMinVec()->norm);
     }
-    string denotes = "dim," + to_string(B.NumRows()) + ",sampling," + to_string(simu_samp) + ",concurrency," + to_string(list_concurrency[j]);
-    out2csv("GS_P_test", rec2, index, denotes);
+    string denotes2 = "dim," + to_string(B.NumRows()) + ",sampling," + to_string(simu_samp) + ",concurrency," + to_string(concurrency);
+    out2csv("GS_P_test", rec2, index, denotes2);
 
     #endif
 

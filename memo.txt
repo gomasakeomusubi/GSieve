@@ -1,14 +1,7 @@
-GS_P vec:1, samp:1  869002 ms
+g++ main.cpp tool.cpp sampler.cpp gsieve.cpp -lm -lgmp -lntl -lpthread -pedantic -Wall -fno-builtin -march=native -O3 -pipe
 
-V <- L
-|L|:145|V|:53|S|:27
+// 30 dim, seed 0
+./a.out -f input.txt -g 2292714
 
-V -> L
-|L|:1|V|:79|S|:1
-Segmentation fault
-
-V <- L
-|L|:341|V|:52|S|:33
-
-V <- L
-|L|:305|V|:54|S|:63
+// 50 dim, seed 0
+./a.out -f input.txt -g 3558190
