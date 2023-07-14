@@ -3,53 +3,38 @@
 #include <fstream>
 #include <iostream>
 #include <NTL/RR.h>
+#include <NTL/ZZ.h>
+#include <NTL/vec_ZZ.h>
 #include <NTL/mat_ZZ.h>
 #include <queue>
+#include "tool.h"
 
 NTL_CLIENT
 
 int main(){
-    vector<int> A = {1, 2};
-    vector<int> B = {1, 3, 4};
+    vec_ZZ v;
+    cin >> v;
 
-    cout << "before" << endl;
-    cout << "A: ";
-    for(auto v: A) cout << v << " ";
-    cout << endl;
-    cout << "B: ";
-    for(auto v: B) cout << v << " ";
-    cout << endl;
+    int dim = v.length();
+    dim--;
 
-    vector<int> C;
-    int i = 0, j = 0;
-    while(i < A.size() && j < B.size()){
-        if(A[i] < B[j]) {
-            C.emplace_back(A[i]);
-            i++;
-        }
-        else {
-            C.emplace_back(B[j]);
-            j++;
-        }
-    }
+    mat_ZZ rot;
+    rot.SetDims(dim, dim);
+    clear(rot);
+    for(int i = 0; i < dim-1; i++) rot[i][i+1] = 1;
+    for(int i = 0; i < dim; i++) rot[dim-1][i] = -v[i];
 
-    while(i < A.size()){
-        C.emplace_back(A[i]);
-        i++;
-    }
-    while(j < B.size()){
-        C.emplace_back(B[j]);
-        j++;
-    }
+    cout << rot << endl;
 
-    queue<int> D;
-    for(int i = 0; i < 10; i++) D.push(i);
+    mat_ZZ rot_inv;
+    rot_inv.SetDims(dim, dim);
+    clear(rot_inv);
+    for(int i = 0; i < dim-1; i++) rot_inv[i+1][i] = 1;
+    for(int i = 0; i < dim; i++) rot_inv[0][i] = -v[dim-1-i];
 
-    while(!D.empty()){
-        cout << D.front() << " ";
-        D.pop();
-    }
-    cout << endl;
+    cout << rot_inv << endl;
+
+    cout << rot * rot_inv << endl;
 
     return 0;
 }

@@ -1,7 +1,8 @@
 g++ main.cpp tool.cpp sampler.cpp gsieve.cpp -lm -lgmp -lntl -lpthread -pedantic -Wall -fno-builtin -march=native -O3 -pipe
+g++ main_Ideal.cpp tool.cpp sampler.cpp Idealgsieve.cpp -lm -lgmp -lntl -lpthread -pedantic -Wall -fno-builtin -march=native -O3 -pipe
 
 // 30 dim, seed 0
 ./a.out -f input.txt -g 2292714
 
 // 50 dim, seed 0
-./a.out -f input.txt -g 3558190
+./a.out -f input.txt -g 3453314

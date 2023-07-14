@@ -12,13 +12,24 @@ void GSieve::printV(){
     cout << endl;
 }
 
-void GSieve::CleanUp(){
-    for(size_t i = 0; i < V.size(); i++) DeleteListPoint(V[i]);
-    for(size_t i = 0; i < V_.size(); i++) DeleteListPoint(V_[i]);
-    for(size_t i = 0; i < V__.size(); i++) DeleteListPoint(V__[i]);
-    for(size_t i = 0; i < L.size(); i++) DeleteListPoint(L[i]);
+ListPoint* GSieve::getMinVec(){
+    if(L[0]->norm == min_norm_) return L[0];
     while(!S.empty()){
-        DeleteListPoint(S.front());
+        if(S.top()->norm == min_norm_) return S.top();
+        DeleteListPoint(S.top());
+        S.pop();
+    }
+
+    return L[0];
+}
+
+void GSieve::CleanUp(){
+    for(size_t i = 0; i < L.size(); i++) DeleteListPoint(L[i]);
+    L.clear();
+    for(size_t i = 0; i < V.size(); i++) DeleteListPoint(V[i]);
+    V.clear();
+    while(!S.empty()){
+        DeleteListPoint(S.top());
         S.pop();
     }
 }
@@ -49,73 +60,10 @@ void GSieve::Init(const mat_ZZ &B, KleinSampler* sampler){
     concurrency_ = 1;
     simu_samp_ = 1;
     goal_norm_ = 0;
+    timeL2V = 0;
+    timeV2V = 0;
+    timeV2L = 0;
 }
-
-// void GSieve::VectorReduce_Parallel(){
-//     vector<LatticeVector*> Tmp;
-//     for(int i = 0; i < V.size(); i++){
-//         LatticeVector *lv = newLatticeVector(m_);
-//         lv->vec = V[i]->vec;
-//         lv->norm2 = V[i]->norm2;
-//         Tmp.emplace_back(lv);
-//     }
-//     cout << 111 << endl;
-
-//     vector<bool> vec_change(V.size(), false);
-//     int num_parallel = V.size() / concurrency_;
-//     int num_remain = V.size() % concurrency_;
-
-//     // 各スレッドにnum_parallel個のベクトルを分配
-//     vector<thread> threads;
-//     for(int i = 0; i < concurrency_; i++){
-//         threads.emplace_back(
-//             [&vec_change, i, this, &Tmp](int num){
-//                 for(int j = 0; j < num; j++){
-//                     for(int k = 0; k < V.size(); k++){
-//                         if(i*num+j == k) continue;
-//                         if(Tmp[i*num+j]->norm2 < V[k]->norm2){
-//                             continue;
-//                         }
-//                         if(reduceVector(Tmp[i*num+j], V[k])){
-//                             vec_change[i*num+j] = true;
-//                         }
-//                     }
-//                 }
-//             }, num_parallel
-//         );
-//     }
-//     for(thread &th : threads){
-//         th.join();
-//     }
-
-//     // 余ったベクトルは本スレッドで
-//     int tmp_sz = Tmp.size();
-//     for(int tmp_id = concurrency_ * num_parallel; tmp_id < tmp_sz; tmp_id++){
-//         for(int v_id = 0; v_id < V.size(); v_id++){
-//             if(tmp_id == v_id) continue;
-//             if(Tmp[tmp_id]->norm2 < V[v_id]->norm2){
-//                 continue;
-//             }
-//             if(reduceVector(Tmp[tmp_id], V[v_id])){
-//                 vec_change[tmp_id] = true;
-//             }
-//         }
-//     }
-
-//     // 更新したベクトルがあればSに移動
-//     for(int i = 0; i < vec_change.size(); i++){
-//         if(vec_change[i] == true){
-//             S.push(Tmp[i]);
-//             // delete V[i];
-//             V.erase(V.begin()+i);
-//             vec_change.erase(vec_change.begin()+i);
-//             i--;
-//         }
-//         // else{
-//         //     delete Tmp[i];
-//         // }
-//     }
-// }
 
 int64 GSieve::GaussReduce(ListPoint* p){
     // p <- L
@@ -156,6 +104,9 @@ int64 GSieve::GaussReduce(ListPoint* p){
 }
 
 int64 GSieve::GaussReduce_Parallel(){
+    chrono::system_clock::time_point start, end;
+    start = chrono::system_clock::now();
+    int64 current_norm = V[0]->norm;
     ////  L -> V  ////
     vector<int> vec_change_V(V.size(), -1);
     vector<thread> threads_LV;
@@ -205,8 +156,11 @@ int64 GSieve::GaussReduce_Parallel(){
         vec_change_V.erase(vec_change_V.begin()+i);
         i--;
     }
+    end = chrono::system_clock::now();
+    timeL2V += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
 
+    start = chrono::system_clock::now();
     ////  V <- V  ////
     bool vec_change_VV = true;
     while(vec_change_VV){
@@ -224,20 +178,26 @@ int64 GSieve::GaussReduce_Parallel(){
             }
         }
     }
-
+    
     for(size_t i = 0; i < V.size(); i++){
         if(vec_change_V[i] != -1) continue;
         if(V[i]->norm == 0){
             DeleteListPoint(V[i]);
             collisions_++;
         }
-        else S.push(V[i]);
+        else{
+            if(current_norm > V[i]->norm) current_norm = V[i]->norm;
+            S.push(V[i]);
+        }
         V.erase(V.begin()+i);
         vec_change_V.erase(vec_change_V.begin()+i);
         i--;
     }
+    end = chrono::system_clock::now();
+    timeV2V += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
 
+    start = chrono::system_clock::now();
     ////  V -> L  ////
     vector<bool> vec_change_L(L.size(), false);
     vector<thread> threads_VL;
@@ -278,9 +238,10 @@ int64 GSieve::GaussReduce_Parallel(){
         vec_change_L.erase(vec_change_L.begin()+i);
         i--;
     }
+    end = chrono::system_clock::now();
+    timeV2L += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
-    if(!V.empty()) return V[0]->norm;
-    else return -1;
+    return current_norm;
 }
 
 void GSieve::GaussSieve(){
@@ -290,6 +251,7 @@ void GSieve::GaussSieve(){
 
     // double time1 = 0, time2 = 0, time3 = 0;
     while(collisions_ < max_list_size_/10+200 && min_norm_ > goal_norm_){
+        // cout << "iteration: " << iterations_ << endl;
         iterations_++;
 
         // time1
@@ -297,7 +259,7 @@ void GSieve::GaussSieve(){
         max_list_size_ = std::max(max_list_size_, (long)L.size());
 
         if(!S.empty()){
-            new_v = S.front();
+            new_v = S.top();
             S.pop();
         }else{
             new_v = sampler_->Sample();
@@ -321,6 +283,7 @@ void GSieve::GaussSieve(){
         }else{
             if(current_norm < min_norm_){
                 min_norm_ = current_norm;
+                cout << min_norm_ << endl;
             }
         }
         // end = chrono::system_clock::now();
@@ -333,25 +296,27 @@ void GSieve::GaussSieve(){
 }
 
 void GSieve::GaussSieve_Parallel(){
-    // chrono::system_clock::time_point start, end;
+    chrono::system_clock::time_point start, end;
     ListPoint* new_v;
+    vector<ListPoint*>::iterator itr;
     int64 current_norm;
 
-    // double time1 = 0, time2 = 0, time3 = 0;
+    double time1 = 0, time2 = 0, time3 = 0;
     while(collisions_ < max_list_size_/10+200 && min_norm_ > goal_norm_){
         // time1
-        // start = chrono::system_clock::now();
+        start = chrono::system_clock::now();
         max_list_size_ = std::max(max_list_size_, (long)(L.size()));
         
         // Vに昇順でベクトルを保存
         if(!S.empty()){
             while(!S.empty() && (int)V.size() < simu_samp_){
-                new_v = S.front(); S.pop();
+                new_v = S.top(); S.pop();
                 if(V.empty()) V.emplace_back(new_v);
                 else{
-                    size_t id = 0;
-                    while(id < V.size() && V[id]->norm < new_v->norm) id++;
-                    if(id < V.size()) V.insert(V.begin() + id, new_v);
+                    itr = lower_bound(V.begin(), V.end(), new_v, [](ListPoint* i, ListPoint* j){
+                        return i->norm < j->norm;
+                    });
+                    if(itr != V.end()) V.insert(itr, new_v);
                     else V.emplace_back(new_v);
                 }
             }
@@ -361,65 +326,47 @@ void GSieve::GaussSieve_Parallel(){
                 new_v = sampler_->Sample();
                 if(V.empty()) V.emplace_back(new_v);
                 else{
-                    size_t id = 0;
-                    while(id < V.size() && V[id]->norm < new_v->norm) id++;
-                    if(id < V.size()) V.insert(V.begin() + id, new_v);
+                    itr = lower_bound(V.begin(), V.end(), new_v, [](ListPoint* i, ListPoint* j){
+                        return i->norm < j->norm;
+                    });
+                    if(itr != V.end()) V.insert(itr, new_v);
                     else V.emplace_back(new_v);
                 }
 
                 sample_vectors_++;
             }
         }
-        // end = chrono::system_clock::now();
-        // time1 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+        end = chrono::system_clock::now();
+        time1 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
         // time2
-        // start = chrono::system_clock::now();
+        start = chrono::system_clock::now();
         current_norm = GaussReduce_Parallel();
-        // end = chrono::system_clock::now();
-        // time2 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+        end = chrono::system_clock::now();
+        time2 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
         // time3
-        // start = chrono::system_clock::now();
+        start = chrono::system_clock::now();
         if(current_norm != -1 && current_norm < min_norm_){
             min_norm_ = current_norm;
         }
 
-        // vector<ListPoint*> tmp_L;
-        // size_t i = 0, j = 0;
-        // while(i < V.size() && j < L.size()){
-        //     if(V[i]->norm < L[j]->norm){
-        //         tmp_L.emplace_back(V[i]);
-        //         i++;
-        //     }
-        //     else{
-        //         tmp_L.emplace_back(L[j]);
-        //         j++;
-        //     }
-        // }
-        // while(i < V.size()){
-        //     tmp_L.emplace_back(V[i]);
-        //     i++;
-        // }
-        // while(j < L.size()){
-        //     tmp_L.emplace_back(L[j]);
-        //     j++;
-        // }
-        // L = tmp_L;
         for(int i = 0; i < (int)V.size(); i++){
-            int id = 0;
-            while(id < (int)L.size() && L[id]->norm < V[i]->norm) id++;
-            if(id < (int)L.size()) L.insert(L.begin()+id, V[i]);
-            else L.push_back(V[i]);
+            // lower_boundの区間の上限はvec_change_V[i]
+            itr = lower_bound(L.begin(), L.end(), V[i], [](ListPoint* i, ListPoint* j){
+                return i->norm < j->norm;
+            });
+            if(itr != L.end()) L.insert(itr, V[i]);
+            else L.emplace_back(V[i]);
         }
         V.clear();
-        // end = chrono::system_clock::now();
-        // time3 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+        end = chrono::system_clock::now();
+        time3 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
         iterations_++;
     }
 
-    // chk_time.push_back(time1);
-    // chk_time.push_back(time2);
-    // chk_time.push_back(time3);
+    chk_time_.push_back(time1);
+    chk_time_.push_back(time2);
+    chk_time_.push_back(time3);
 }

@@ -77,6 +77,65 @@ bool reduceVector(ListPoint *p1, const ListPoint *p2){
     return true;
 }
 
+void rotation_anti_cyclic(ListPoint* p1){
+    long dims = p1->v.length();
+    int64 tmp = p1->v[dims-1];
+
+    for(int i = dims - 1; i > 0; i--){
+        p1->v[i] = p1->v[i - 1];
+    }
+    p1->v[0] = -tmp;
+}
+
+void rotation(ListPoint* p1, const vec_int64 &modf){
+    long dims = p1->v.length();
+    int64 norm = 0;
+    int64 tmp = p1->v[dims-1];
+    for(int i = dims - 1; i > 0; i--){
+        p1->v[i] = p1->v[i-1] - tmp * modf[i];
+        norm += p1->v[i] * p1->v[i];
+    }
+    p1->v[0] = -tmp * modf[0];
+    norm += p1->v[0] * p1->v[0];
+    p1->norm = norm;
+}
+
+void rotation_inv(ListPoint* p1, const vec_int64 &modf){
+    long dims = p1->v.length();
+    int64 norm = 0;
+    int64 tmp = p1->v[0];
+    for(int i = 0; i < dims - 1; i++){
+        p1->v[i] = p1->v[i+1] - tmp * modf[dims-i-1];
+        norm += p1->v[i] * p1->v[i];
+    }
+    p1->v[dims-1] = -tmp * modf[0];
+    norm += p1->v[dims-1] * p1->v[dims-1];
+    p1->norm = norm;
+}
+
+bool IdealreduceVector(ListPoint *p1, const ListPoint *p2, const vec_int64 &modf, int index){
+    long n = p2->v.length();
+    ListPoint *lp = NewListPoint(n);
+    for(int i = 0; i < n; i++) lp->v[i] = p2->v[i];
+    lp->norm = p2->norm;
+
+    bool vec_change = false;
+
+    for(int i = 0; i < index; i++, rotation(lp, modf)){
+        if(lp->norm > p1->norm){
+            continue;
+            // break;
+        }
+        if(reduceVector(p1, lp)){
+            vec_change = true;
+        }
+    }
+
+    DeleteListPoint(lp);
+
+    return vec_change;
+}
+
 void out2csv(string filename, vector<double> rec[], vector<string> index, string denotes){
     ostringstream oss;
     ofstream ofs;

@@ -37,6 +37,10 @@ void MatInt64FromMatZZ(const mat_ZZ B, mat_int64 &A);
 void MatDoubleFromMatRR(const mat_RR B, mat_double &A);
 
 bool reduceVector(ListPoint *p1, const ListPoint *p2);
+void rotation_anti_cyclic(ListPoint* p1);
+void rotation(ListPoint *p1, const vec_int64 &modf);
+void rotation_inv(ListPoint *p1, const vec_int64 &modf);
+bool IdealreduceVector(ListPoint *p1, const ListPoint *p2, const vec_int64 &modf, int index);
 
 void out2csv(string filename, vector<double> rec[], vector<string> index, string denotes);
 
