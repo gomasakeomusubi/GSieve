@@ -1,29 +1,25 @@
-CC            = g++
-CFLAGS        = 
-DEST          = 
-LDFLAGS       = -lntl -lgmp -lpthread -lgsl -lgslcblas 
-LIBS          = 
-OBJS          = main.o
-PROGRAM       = main
-SRC = main.cpp
-HEADER = sample.h gsieve.h
+CC=g++
+OPTFLAGS= -march=native -O2 -pipe
+STRICT= -std=c++98 -pedantic -Wall -fno-builtin
+CFLAGS   = $(STRICT) $(OPTFLAGS)
+LIBS = -lm -lgmp -lntl -lpthread
 
-all:$(PROGRAM)
+OBJ_DIR = obj
+BIN_DIR = bin
+BASE = tool sampler gsieve
+MAIN  = main
 
-$(PROGRAM):$(OBJS) 
-	$(CC) $(OBJS) $(LDFLAGS) $(LIBS) -o $(PROGRAM)
+##
+TEMP_BASE_OBJ = $(addsuffix .o, $(BASE)  )
+BASE_OBJ = $(addprefix $(OBJ_DIR)/, $(TEMP_BASE_OBJ) )
 
-$(OBJS):$(SRC) $(HEADER)
-	$(CC) $(SRC) $(LDFLAGS) $(LIBS) -c
+all: $(MAIN)
 
-# get_basis:get_basis.cpp
-# 	$(CC) get_basis.cpp -lcurl -o get_basis
+$(OBJ_DIR)/%.o: %.cc
+	$(CC) $(CONFOPT) $(CFLAGS) -c   $< -o $@
 
-clean:;         
-	rm -f *.o *~ $(PROGRAM)
+$(MAIN): $(BASE_OBJ)
+	$(CC) $@.cc $(BASE_OBJ) -o $(BIN_DIR)/$@  $(LIBS) $(CFLAGS)
 
-install:$(PROGRAM)
-	install -s $(PROGRAM) $(DEST)
-retags:;
-	rm TAGS
-	etags -a *.cpp *.h
+clean:
+	rm bin/* obj/*

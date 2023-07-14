@@ -10,7 +10,7 @@
 #include <chrono>
 
 #include "sampler.h"
-#include "gsieve.h"
+#include "Idealgsieve.h"
 #include "math.h"
 #include "tool.h"
 
@@ -35,35 +35,66 @@ int main(int argc, char** argv){
     ostringstream oss;
     ifstream ifs;
     mat_ZZ B;
+    vec_ZZ modf;
+    long dim, index, seed;
     oss << filename;
     ifs.open(oss.str(), ios::in);
     if(ifs.is_open()){
-        ifs >> B;
+        ifs >> B >> dim >> index >> seed;
+        modf.SetLength(index);
+        ifs >> modf;
         ifs.close();
     }
-    else cin >> B;
+    else{
+        cin >> B >> index;
+        cin >> modf;
+        dim = B.NumRows();
+        seed = -1;
+    }
 
-    // G_BKZ_FP(B, 0.99, 20);
     ZZ det2;
     LLL(det2, B, 99, 100, 0);
 
-    int exp_time = 1;   // 繰り返し回数
-    // 評価項目
-    vector<string> index = {"time(ms)", "time1", "time2", "time3", "L->V",
-                             "V->V", "V->L", "list_size", "sample_vectors",
-                              "collisions", "iterations", "norm"};
-    vector<int> list_concurrency = {1, 2, 4, 6, 8, 12, 16, 20};
-    vector<int> list_simu_samp = {120, 160, 200, 240};
-    int size_index = (int)index.size();
     chrono::system_clock::time_point start, end;
 
-    #if 1
+    KleinSampler sampler;
+    IdealGSieve Igs;
+    start = chrono::system_clock::now();
+    Igs.Init(B, &sampler, index, modf);
+    Igs.SetGoalNorm(goal_norm);
+    Igs.IdealGaussSieve();
+    end = chrono::system_clock::now();
+    double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+
+    ListPoint* lp = Igs.getMinVec();
+    cout << "vec: " << lp->v << endl << "norm: " << lp->norm << "/" << sqrt(lp->norm) << endl;
+    cout << "times(ms): " << elapsed << endl;
+    cout << "L size: " << Igs.getListSize() << endl;
+    cout << "number of samples: " << Igs.getSampleVectors() << endl;
+    cout << "collisions: " << Igs.getCollisions() << endl;
+    cout << "Iterations: " << Igs.getIterations() << endl;
+
+    // // G_BKZ_FP(B, 0.99, 20);
+    // ZZ det2;
+    // LLL(det2, B, 99, 100, 0);
+
+    // int exp_time = 1;   // 繰り返し回数
+    // // 評価項目
+    // vector<string> index = {"time(ms)", "time1", "time2", "time3", "L->V",
+    //                          "V->V", "V->L", "list_size", "sample_vectors",
+    //                           "collisions", "iterations", "norm"};
+    // vector<int> list_concurrency = {1, 2, 4, 6, 8, 12, 16, 20};
+    // vector<int> list_simu_samp = {120, 160, 200, 240};
+    // int size_index = (int)index.size();
+    // chrono::system_clock::time_point start, end;
+
+    #if 0
     // GS
     cout << "GS:" << endl;
     vector<double> rec1[size_index];
     for(int i = 0; i < exp_time; i++){
         KleinSampler sampler;
-        GSieve gs;
+        IdealGSieve Igs;
 
         gs.Init(B, &sampler);
 

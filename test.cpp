@@ -1,62 +1,40 @@
 #include <vector>
+#include <sstream>
+#include <fstream>
 #include <iostream>
+#include <NTL/RR.h>
+#include <NTL/ZZ.h>
+#include <NTL/vec_ZZ.h>
+#include <NTL/mat_ZZ.h>
+#include <queue>
+#include "tool.h"
 
-using namespace std;
-
-struct TES{
-    int a;
-    float b;
-};
-
-void printTES(vector<TES*> a){
-    for(size_t i = 0; i < a.size(); i++){
-        cout << "(" << a[i]->a << ", " << a[i]->b << ") " << flush;
-    }
-    cout << endl;
-}
-
-void func(TES *tes){
-    tes->b += 1;
-}
+NTL_CLIENT
 
 int main(){
-    vector<TES*> tes, tes2;
+    vec_ZZ v;
+    cin >> v;
 
-    // TES *c = new TES;
-    for(int i = 0; i < 5; i++){
-        TES *c = new TES;
-        c->a = i;
-        c->b = i + 0.5;
-        tes.push_back(c);
-    }
+    int dim = v.length();
+    dim--;
 
-    cout << "original  : " << flush;
-    printTES(tes);
+    mat_ZZ rot;
+    rot.SetDims(dim, dim);
+    clear(rot);
+    for(int i = 0; i < dim-1; i++) rot[i][i+1] = 1;
+    for(int i = 0; i < dim; i++) rot[dim-1][i] = -v[i];
 
-    // tesに格納されているTES*型の変数は削除されるがvectorの要素は変わらない
-    // ポインタを変数に代入すると、値をコピーしているがポインタの指すアドレスは同じなので、片方をdeleteするともう片方もdeleteされる。
+    cout << rot << endl;
 
-    // eraseではvectorからは削除されるがポインタ自身は残る
-    
-    // for(int i = 0; i < tes.size(); i++){
-    //     if(1 <= tes[i]->a && tes[i]->a <= 2){
-    //         tes.erase(tes.begin()+i);
-    //         i--;
-    //     }
-    // }
+    mat_ZZ rot_inv;
+    rot_inv.SetDims(dim, dim);
+    clear(rot_inv);
+    for(int i = 0; i < dim-1; i++) rot_inv[i+1][i] = 1;
+    for(int i = 0; i < dim; i++) rot_inv[0][i] = -v[dim-1-i];
 
-    TES *f = new TES;
-    f = tes[2];
-    for(int i = 0; i < tes.size(); i++){
-        if(i == 2) func(tes[i]);
-    }
+    cout << rot_inv << endl;
 
-    cout << "after     : " << flush;
-    printTES(tes);
-
-    cout << "(" << f->a << ", " << f->b << ")" << endl;
-
-    for(auto &t : tes) delete t;
+    cout << rot * rot_inv << endl;
 
     return 0;
 }
