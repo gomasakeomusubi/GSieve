@@ -31,6 +31,7 @@ class GSieve{
         int concurrency_;
         // void VectorReduce_Parallel();
         int64 GaussReduce(ListPoint* p);
+        int64 TripleReduce(ListPoint* p);
         int64 GaussReduce_Parallel();
         // statistics
         long max_list_size_;

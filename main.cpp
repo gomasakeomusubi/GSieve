@@ -65,11 +65,9 @@ int main(int argc, char** argv){
         KleinSampler sampler;
         GSieve gs;
 
-        gs.Init(B, &sampler);
-
-        gs.SetGoalNorm(goal_norm);
-
         start = chrono::system_clock::now();
+        gs.Init(B, &sampler);
+        gs.SetGoalNorm(goal_norm);
         gs.GaussSieve();
         end = chrono::system_clock::now();
         double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
