@@ -32,6 +32,8 @@ class GSieve{
         // void VectorReduce_Parallel();
         int64 GaussReduce(ListPoint* p);
         int64 TripleReduce(ListPoint* p);
+        int64 Reduce_2red(ListPoint* p);
+        // int64 Reduce_3red(ListPoint* p);
         int64 GaussReduce_Parallel();
         // statistics
         long max_list_size_;
@@ -59,7 +61,7 @@ class GSieve{
         void printV();
         long getIterations(){ return iterations_; }
         long getCollisions(){ return collisions_; }
-        long getListSize(){ return L.size(); }
+        long getListSize(){ return max_list_size_; }
         long getSampleVectors(){ return sample_vectors_; }
         ListPoint* getMinVec();
         vector<double> getChkTime(){ return chk_time_; }

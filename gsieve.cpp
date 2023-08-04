@@ -2,7 +2,7 @@
 
 void GSieve::printL(){
     cout << "L:" << endl;
-    for(auto v: L) cout << v->norm << " ";
+    for(auto v: L) cout << v->norm << "/" << v << " ";
     cout << endl;
 }
 
@@ -53,8 +53,6 @@ void GSieve::Init(const mat_ZZ &B, KleinSampler* sampler){
         VecZZToListPoint(B[i], p);
         // current_norm = GaussReduce(p);
         current_norm = TripleReduce(p);
-        cout << current_norm << "," << L.size() << "," << S.size() << " " << endl;
-        printL();
         if(current_norm < min_norm_){
             min_norm_ = current_norm;
         }
@@ -105,6 +103,49 @@ int64 GSieve::GaussReduce(ListPoint* p){
     return p->norm;
 }
 
+// bool GSieve::Reduce3(ListPoint* p){
+//     //  minkowski reduce
+//     bool vec_change = false;
+//     ListPoint* lp = NewListPoint(m_);
+//     // p <- l1 ± l2 in L
+//     for(size_t i = 0; i < L.size(); i++){
+//         for(size_t j = i+1; j < L.size(); j++){
+//             int64 dot = 0;
+//             for(int d = 0; d < m_; d++){
+//                 dot += L[i]->v[d] * L[j]->v[d];
+//             }
+            
+//             // L[i] + L[j]
+//             lp->norm = L[i]->norm + L[j]->norm + 2 * dot;
+//             if(p->norm >= lp->norm){
+//                 for(int d = 0; d < m_; d++){
+//                     lp->v[d] = L[i]->v[d] + L[j]->v[d];
+//                 }
+//                 if(reduceVector(p, lp)){
+//                     vec_change = true;
+//                     return vec_change;
+//                 }
+//             }
+
+//             // L[i] - L[j]
+//             lp->norm = L[i]->norm + L[j]->norm - 2 * dot;
+//             if(p->norm >= lp->norm){
+//                 for(int d = 0; d < m_; d++){
+//                     lp->v[d] = L[i]->v[d] - L[j]->v[d];
+//                 }
+//                 if(reduceVector(p, lp)){
+//                     vec_change = true;
+//                     return vec_change;
+//                 }
+//             }
+//         }
+//     }
+
+//     DeleteListPoint(lp);
+
+//     return vec_change;
+// }
+
 int64 GSieve::TripleReduce(ListPoint* p){
     // p <- L
     //  pair-wise reduce
@@ -127,58 +168,50 @@ int64 GSieve::TripleReduce(ListPoint* p){
         return 0;
     }
 
+    for(; id_L < L.size(); id_L++){
+        if(reduceVector(L[id_L], p)){
+            S.push(L[id_L]);
+            L.erase(L.begin()+id_L);
+            id_L--;
+        }
+    }
+
+#if 1
     //  minkowski reduce
-    // p <- l1 + l2 in L
+    ListPoint* lp = NewListPoint(m_);
+    // p <- l1 ± l2 in L
     vec_change = true;
-    while(vec_change){
-        vec_change = false;
-        for(size_t i = 0; i < L.size(); i++){
-            for(size_t j = i+1; j < L.size(); j++){
-                ListPoint* lp = NewListPoint(m_);
+    for(size_t i = 0; i < L.size(); i++){
+        // if(p->norm < L[i]->norm) break;
+        if(reduceVector(p, L[i])){
+            vec_change = true;
+        }
+        for(size_t j = i+1; j < L.size(); j++){
+            int64 dot = 0;
+            for(int d = 0; d < m_; d++){
+                dot += L[i]->v[d] * L[j]->v[d];
+            }
+            
+            // L[i] + L[j]
+            lp->norm = L[i]->norm + L[j]->norm + 2 * dot;
+            if(p->norm >= lp->norm){
                 for(int d = 0; d < m_; d++){
                     lp->v[d] = L[i]->v[d] + L[j]->v[d];
-                    lp->norm += lp->v[d] * lp->v[d];
-                }
-
-                if(p->norm < lp->norm){
-                    DeleteListPoint(lp);
-                    continue;
                 }
                 if(reduceVector(p, lp)){
-                    vec_change = true;
+                    vec_change  = true;
                 }
-
-                DeleteListPoint(lp);
             }
-        }
-    }
 
-    if(p->norm == 0){
-        DeleteListPoint(p);
-        return 0;
-    }
-
-    // p <- l1 - l2 in L
-    vec_change = true;
-    while(vec_change){
-        vec_change = false;
-        for(size_t i = 0; i < L.size(); i++){
-            for(size_t j = i+1; j < L.size(); j++){
-                ListPoint* lp = NewListPoint(m_);
+            // L[i] - L[j]
+            lp->norm = L[i]->norm + L[j]->norm - 2 * dot;
+            if(p->norm >= lp->norm){
                 for(int d = 0; d < m_; d++){
                     lp->v[d] = L[i]->v[d] - L[j]->v[d];
-                    lp->norm += lp->v[d] * lp->v[d];
-                }
-
-                if(p->norm < lp->norm){
-                    DeleteListPoint(lp);
-                    continue;
                 }
                 if(reduceVector(p, lp)){
                     vec_change = true;
                 }
-
-                DeleteListPoint(lp);
             }
         }
     }
@@ -186,27 +219,17 @@ int64 GSieve::TripleReduce(ListPoint* p){
     if(p->norm == 0){
         DeleteListPoint(p);
         return 0;
-    }
-
-    // cout << p->norm << endl;
-
-    vector<ListPoint*>::iterator itr = lower_bound(L.begin(), L.end(), p, [](const ListPoint* i, const ListPoint* j){
-        return i->norm < j->norm;
-    });
-    if(itr != L.end()) L.insert(itr, p);
-    else{
-        L.emplace_back(p);
-        itr = L.begin() + L.size() - 1;
     }
 
     // p -> L
     vector<bool> vec_change_L(L.size(), false);
 
     for(size_t i = 0; i < L.size(); i++){
-        if(i != (size_t)(itr - L.begin()) && L[i]->norm >= p->norm && reduceVector(L[i], p)){
+        if(L[i]->norm >= p->norm && reduceVector(L[i], p)){
             vec_change_L[i] = true;
         }
         for(size_t j = 0; j < L.size(); j++){
+            if(j == i) continue;
             // <p, L[i]>を使いたい
             int64 dot = 0;
             for(int d = 0; d < m_; d++){
@@ -216,7 +239,6 @@ int64 GSieve::TripleReduce(ListPoint* p){
             // L[j] <- p + L[i]
             int64 norm_ = p->norm + L[i]->norm + 2 * dot;
             if(L[j]->norm >= norm_){
-                ListPoint *lp = NewListPoint(m_);
                 for(int d = 0; d < m_; d++){
                     lp->v[d] = p->v[d] + L[i]->v[d];
                 }
@@ -225,14 +247,11 @@ int64 GSieve::TripleReduce(ListPoint* p){
                 if(reduceVector(L[j], lp)){
                     vec_change_L[j] = true;
                 }
-
-                DeleteListPoint(lp);
             }
 
             // L[j] <- p - L[i]
             norm_ -= 4 * dot;
             if(L[j]->norm >= norm_){
-                ListPoint *lp = NewListPoint(m_);
                 for(int d = 0; d < m_; d++){
                     lp->v[d] = p->v[d] - L[i]->v[d];
                 }
@@ -241,11 +260,7 @@ int64 GSieve::TripleReduce(ListPoint* p){
                 if(reduceVector(L[j], lp)){
                     vec_change_L[j] = true;
                 }
-
-                DeleteListPoint(lp);
             }
-
-            
         }
     }
 
@@ -258,119 +273,55 @@ int64 GSieve::TripleReduce(ListPoint* p){
         }
     }
 
-#if 0
-    // p <- l1 + l2 in L
-    bool vec_change = true;
-    while(vec_change){
-        vec_change = false;
-        for(size_t i = 0; i < L.size(); i++){
-            for(size_t j = i+1; j < L.size(); j++){
-                int64 dot = 0;
-                for(int d = 0; d < m_; d++){
-                    dot += L[i]->v[d] * L[j]->v[d];
-                }
-
-                if(p->norm < L[i]->norm + L[j]->norm + 2 * dot){
-                    break;
-                }
-                else{
-                    
-                }
-                if(reduceVector(p, lp)){
-                    vec_change = true;
-                }
-
-                DeleteListPoint(lp);
-            }
-        }
-    }
-
-    if(p->norm == 0){
-        DeleteListPoint(p);
-        return 0;
-    }
-
-    // p <- l1 - l2 in L
-    vec_change = true;
-    while(vec_change){
-        vec_change = false;
-        for(size_t i = 0; i < L.size(); i++){
-            for(size_t j = i+1; j < L.size(); j++){
-                ListPoint* lp = NewListPoint(m_);
-                for(int d = 0; d < m_; d++){
-                    lp->v[d] = L[i]->v[d] - L[j]->v[d];
-                    lp->norm += lp->v[d] * lp->v[d];
-                }
-
-                if(p->norm < lp->norm){
-                    break;
-                }
-                if(reduceVector(p, lp)){
-                    vec_change = true;
-                }
-
-                DeleteListPoint(lp);
-            }
-        }
-    }
-
-    if(p->norm == 0){
-        DeleteListPoint(p);
-        return 0;
-    }
-
-    vector<bool> vec_change_L(L.size(), false);
-    // p + l1 -> l2
-    for(size_t i = 0; i < L.size(); i++){
-        for(size_t j = 0; j < L.size(); j++){
-            ListPoint* lp = NewListPoint(m_);
-            for(int d = 0; d < m_; d++){
-                lp->v[d] = p->v[d] + L[j]->v[d];
-                lp->norm += lp->v[d] * lp->v[d];
-            }
-
-            if(L[i]->norm < lp->norm){
-                DeleteListPoint(lp);
-                continue;
-            }
-            if(reduceVector(L[i], lp)){
-                vec_change_L[i] = true;
-            }
-
-            DeleteListPoint(lp);
-        }
-    }
-
-    // p - l1 -> l2
-    for(size_t i = 0; i < L.size(); i++){
-        for(size_t j = 0; j < L.size(); j++){
-            ListPoint* lp = NewListPoint(m_);
-            for(int d = 0; d < m_; d++){
-                lp->v[d] = p->v[d] - L[j]->v[d];
-                lp->norm += lp->v[d] * lp->v[d];
-            }
-
-            if(L[i]->norm < lp->norm){
-                DeleteListPoint(lp);
-                continue;
-            }
-            if(reduceVector(L[i], lp)){
-                vec_change_L[i] = true;
-            }
-
-            DeleteListPoint(lp);
-        }
-    }
-
-    for(size_t i = 0; i < L.size(); i++){
-        if(vec_change_L[i]){
-            S.push(L[i]);
-            L.erase(L.begin()+i);
-            vec_change_L.erase(vec_change_L.begin()+i);
-            i--;
-        }
-    }
+    DeleteListPoint(lp);
 #endif
+
+    vector<ListPoint*>::iterator itr = lower_bound(L.begin(), L.end(), p, [](const ListPoint* i, const ListPoint* j){
+        return i->norm < j->norm;
+    });
+    if(itr != L.end()){
+        L.insert(itr, p);
+    }
+    else{
+        L.emplace_back(p);
+    }
+
+    return p->norm;
+}
+
+int64 GSieve::Reduce_2red(ListPoint* p){
+    // p <- L
+    bool vec_change = true;
+    size_t id_L;
+    while(vec_change){
+        vec_change = false;
+        for(id_L = 0; id_L < L.size(); id_L++){
+            if(p->norm < L[id_L]->norm){
+                break;
+            }
+            if(reduceVector(p, L[id_L])){
+                vec_change = true;
+            }
+        }
+    }
+
+    if(p->norm == 0){
+        DeleteListPoint(p);
+        return 0;
+    }
+
+    // vectorでinsert, deleteは時間かかるので改善が必要、listなら速い -> 元のGSよりちょっと早いんでこのまま
+    L.insert(L.begin()+id_L, p);
+    id_L++;
+
+    // p -> L
+    for(; id_L < L.size(); id_L++){
+        if(reduceVector(L[id_L], p)){
+            S.push(L[id_L]);
+            L.erase(L.begin()+id_L);
+            id_L--;
+        }
+    }
 
     return p->norm;
 }
@@ -546,7 +497,7 @@ void GSieve::GaussSieve(){
 
         // current_norm = GaussReduce(new_v);
         current_norm = TripleReduce(new_v);
-        cout << L.size() << " " << flush;
+        // cout << L.size() << " " << flush;
 
         // end = chrono::system_clock::now();
         // time2 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;

@@ -77,6 +77,67 @@ bool reduceVector(ListPoint *p1, const ListPoint *p2){
     return true;
 }
 
+bool reduceVectorDot(ListPoint *p1, const ListPoint *p2, int64 &dot_p1p2){
+    long dims = p1->v.length();
+    int64 dot = 0;
+
+    if(p2->norm == 0){
+        return false;
+    }
+
+    for(int i = 0; i < dims; i++){
+        dot += p1->v[i] * p2->v[i];
+    }
+    dot_p1p2 = dot;
+    if(2 * abs(dot) <= p2->norm){
+        return false;
+    }
+    long q = round((double)dot / p2->norm);
+    for(int i = 0; i < dims; i++){
+        p1->v[i] -= q * p2->v[i];
+    }
+    p1->norm = p1->norm - 2 * q * dot + q * q * p2->norm;
+
+    dot_p1p2 -= q * p2->norm;
+    
+    return true;
+}
+
+bool check_2red(const ListPoint *p1, const ListPoint *p2){
+    // p1 >= p2 で入力するように
+
+    long dims = p1->v.length();
+    int64 dot = 0;
+
+    for(int i = 0; i < dims; i++){
+        dot += p1->v[i] * p2->v[i];
+    }
+    if(2 * abs(dot) <= p2->norm){
+        return true;
+    }
+    else return false;
+}
+
+bool check_3red(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3){
+    // p1 >= p2 >= p3 で入力するように
+
+    if(!check_2red(p1, p2)) return false;
+    if(!check_2red(p1, p3)) return false;
+    if(!check_2red(p2, p3)) return false;
+
+    int64 dot12 = 0;
+    int64 dot13 = 0;
+    int64 dot23 = 0;
+    long dims = p1->v.length();
+    for(int i = 0; i < dims; i++){
+        dot12 += p1->v[i] * p2->v[i];
+        dot13 += p1->v[i] * p3->v[i];
+        dot23 += p2->v[i] * p3->v[i];
+    }
+
+    return true;
+}
+
 void rotation_anti_cyclic(ListPoint* p1){
     long dims = p1->v.length();
     int64 tmp = p1->v[dims-1];

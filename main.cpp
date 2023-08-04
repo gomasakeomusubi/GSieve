@@ -43,24 +43,27 @@ int main(int argc, char** argv){
     }
     else cin >> B;
 
-    // G_BKZ_FP(B, 0.99, 20);
+    G_BKZ_FP(B, 0.99, 20);
     ZZ det2;
-    LLL(det2, B, 99, 100, 0);
+    // LLL(det2, B, 99, 100, 0);
 
     int exp_time = 1;   // 繰り返し回数
     // 評価項目
-    vector<string> index = {"time(ms)", "time1", "time2", "time3", "L->V",
-                             "V->V", "V->L", "list_size", "sample_vectors",
-                              "collisions", "iterations", "norm"};
+    // vector<string> index = {"time(ms)", "time1", "time2", "time3", "L->V",
+    //                          "V->V", "V->L", "list_size", "sample_vectors",
+    //                           "collisions", "iterations", "norm"};
     vector<int> list_concurrency = {1, 2, 4, 6, 8, 12, 16, 20};
     vector<int> list_simu_samp = {120, 160, 200, 240};
-    int size_index = (int)index.size();
+    // int size_index = (int)index.size();
     chrono::system_clock::time_point start, end;
 
     #if 1
     // GS
+    vector<string> index_GS = {"time(ms)", "list_size", "sample_vectors",
+                              "collisions", "iterations", "norm"};
+    int size_index_GS = (int)index_GS.size();
     cout << "GS:" << endl;
-    vector<double> rec1[size_index];
+    vector<double> rec1[size_index_GS];
     for(int i = 0; i < exp_time; i++){
         KleinSampler sampler;
         GSieve gs;
@@ -84,7 +87,7 @@ int main(int argc, char** argv){
         rec1[5].emplace_back(gs.getMinVec()->norm);
     }
     string denotes1 = "dim," + to_string(B.NumRows());
-    out2csv("GS_test", rec1, index, denotes1);
+    out2csv("GS_test", rec1, index_GS, denotes1);
     
     #endif
 
