@@ -7,34 +7,68 @@
 #include <NTL/vec_ZZ.h>
 #include <NTL/mat_ZZ.h>
 #include <queue>
+#include <ctime>
+#include <chrono>
+#include <cstdlib>
 #include "tool.h"
 
 NTL_CLIENT
 
+template<typename T>
+void print(vector<T> &v, string name){
+    cout << name << ":" << endl;
+    for(auto n: v) cout << n << " ";
+    cout << endl;
+}
+
 int main(){
-    vec_ZZ v;
-    cin >> v;
+    int exp_time = 100;
+    double all_time = 0;
+    for(int d = 0; d < exp_time; d++){
+        chrono::system_clock::time_point start, end;
+        int N = 1000000;
+        vector<int> A(N), B;
+        for(int i = 0; i < N; i++) A[i] = i;
+        // print(A, "A");
 
-    int dim = v.length();
-    dim--;
+        srand(time(NULL));
+        vector<bool> c(N, false);
+        for(int i = 0; i < N; i++){
+            if(rand() % 2) c[i] = true;
+        }
+        // print(c, "c");
 
-    mat_ZZ rot;
-    rot.SetDims(dim, dim);
-    clear(rot);
-    for(int i = 0; i < dim-1; i++) rot[i][i+1] = 1;
-    for(int i = 0; i < dim; i++) rot[dim-1][i] = -v[i];
+        start = chrono::system_clock::now();
+#ifdef DEBUG
+        for(int i = 0; i < A.size(); i++){
+            if(c[i]){
+                B.push_back(A[i]);
+                A.erase(A.begin() + i);
+                c.erase(c.begin() + i);
+                i--;
+            }
+        }
+#endif
+#ifndef DEBUG
+        vector<int> AA;
+        for(int i = 0; i < A.size(); i++){
+            if(c[i]){
+                B.push_back(A[i]);
+            }
+            else{
+                AA.push_back(A[i]);
+            }
+        }
+        A.swap(AA);
+#endif
+        end = chrono::system_clock::now();
+        double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
+        all_time += elapsed;
+        // print(A, "A");
+        // print(B, "B");
+    }
 
-    cout << rot << endl;
-
-    mat_ZZ rot_inv;
-    rot_inv.SetDims(dim, dim);
-    clear(rot_inv);
-    for(int i = 0; i < dim-1; i++) rot_inv[i+1][i] = 1;
-    for(int i = 0; i < dim; i++) rot_inv[0][i] = -v[dim-1-i];
-
-    cout << rot_inv << endl;
-
-    cout << rot * rot_inv << endl;
+    cout << all_time << endl;
 
     return 0;
 }
