@@ -52,6 +52,7 @@ int main(int argc, char** argv){
         seed = -1;
     }
 
+    // G_BKZ_FP(B, 0.99, 20);
     ZZ det2;
     LLL(det2, B, 99, 100, 0);
 
@@ -67,10 +68,10 @@ int main(int argc, char** argv){
     double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
     ListPoint* lp = Igs.getMinVec();
-    cout << "vec: " << lp->v << endl << "norm: " << lp->norm << "/" << sqrt(lp->norm) << endl;
-    cout << "times(ms): " << elapsed << endl;
-    cout << "L size: " << Igs.getListSize() << endl;
-    cout << "number of samples: " << Igs.getSampleVectors() << endl;
+    cout << "vector    : " << lp->v << endl << "norm      : " << lp->norm << "/" << sqrt(lp->norm) << endl;
+    cout << "times(ms) : " << elapsed << endl;
+    cout << "size of L : " << Igs.getListSize() << endl;
+    cout << "samples   : " << Igs.getSampleVectors() << endl;
     cout << "collisions: " << Igs.getCollisions() << endl;
     cout << "Iterations: " << Igs.getIterations() << endl;
 

@@ -43,9 +43,9 @@ int main(int argc, char** argv){
     }
     else cin >> B;
 
-    G_BKZ_FP(B, 0.99, 20);
+    // G_BKZ_FP(B, 0.99, 20);
     ZZ det2;
-    // LLL(det2, B, 99, 100, 0);
+    LLL(det2, B, 99, 100, 0);
 
     int exp_time = 1;   // 繰り返し回数
     // 評価項目

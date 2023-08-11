@@ -31,8 +31,9 @@ class GSieve{
         int concurrency_;
         // void VectorReduce_Parallel();
         int64 GaussReduce(ListPoint* p);
+        int64 TripleReduce_2red(ListPoint* p, int &p_pos);
+        bool check_2red2(const ListPoint *p1, const ListPoint *p2);
         int64 TripleReduce(ListPoint* p);
-        int64 Reduce_2red(ListPoint* p);
         // int64 Reduce_3red(ListPoint* p);
         int64 GaussReduce_Parallel();
         // statistics

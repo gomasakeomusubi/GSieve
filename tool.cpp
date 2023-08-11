@@ -104,7 +104,9 @@ bool reduceVectorDot(ListPoint *p1, const ListPoint *p2, int64 &dot_p1p2){
 }
 
 bool check_2red(const ListPoint *p1, const ListPoint *p2){
-    // p1 >= p2 で入力するように
+    // input: p1, p2 (p1 <= p2)
+    // output: 2-reduced p1, p2
+    //         if reduced 1 else 0.
 
     long dims = p1->v.length();
     int64 dot = 0;
@@ -112,14 +114,16 @@ bool check_2red(const ListPoint *p1, const ListPoint *p2){
     for(int i = 0; i < dims; i++){
         dot += p1->v[i] * p2->v[i];
     }
-    if(2 * abs(dot) <= p2->norm){
-        return true;
+    if(2 * abs(dot) <= p2->norm){       // p1? p2?...
+        return true;    // 2-reduced.
     }
-    else return false;
+    else return false;  // not 2-reduced.
 }
 
-bool check_3red(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3){
-    // p1 >= p2 >= p3 で入力するように
+bool check_3red(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3, ListPoint *p_new){
+    // input : p1, p2, p3 (p1 <= p2 <= p3)
+    // output: 3-reduced p_new,
+    //         if reduced 1 else 0.
 
     if(!check_2red(p1, p2)) return false;
     if(!check_2red(p1, p3)) return false;
@@ -135,7 +139,23 @@ bool check_3red(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3){
         dot23 += p2->v[i] * p3->v[i];
     }
 
-    return true;
+    int sign12 = 1, sign13 = 1, sign23 = 1;
+    if(dot12 <= 0) sign12 = -1;
+    if(dot13 <= 0) sign13 = -1;
+    if(dot23 <= 0) sign23 = -1;
+
+    if(sign12 * sign13 * sign23 == 1) return false;
+    
+    p_new->norm = 0;
+    // p_newのノルムが最小になるように
+    // dot の値により最大2パターン？
+    for(int i = 0; i < dims; i++){
+        p_new->v[i] = p1->v[i] - sign12 * p2->v[i] - sign13 * p3->v[i];
+        p_new->norm += p_new->v[i] * p_new->v[i];
+    }
+
+    if(p_new->norm < p3->norm) return true;
+    else return false;
 }
 
 void rotation_anti_cyclic(ListPoint* p1){
