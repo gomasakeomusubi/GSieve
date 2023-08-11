@@ -26,9 +26,11 @@ int main(){
     double all_time = 0;
     for(int d = 0; d < exp_time; d++){
         chrono::system_clock::time_point start, end;
-        int N = 1000000;
-        vector<int> A(N), B;
+        int N = 10000;
+        vector<int> A(N);
+        vector<int*> A_ad(N), B;
         for(int i = 0; i < N; i++) A[i] = i;
+        for(int i = 0; i < N; i++) A_ad[i] = &i;
         // print(A, "A");
 
         srand(time(NULL));
@@ -40,26 +42,26 @@ int main(){
 
         start = chrono::system_clock::now();
 #ifdef DEBUG
-        for(int i = 0; i < A.size(); i++){
+        for(int i = 0; i < A_ad.size(); i++){
             if(c[i]){
-                B.push_back(A[i]);
-                A.erase(A.begin() + i);
+                B.push_back(A_ad[i]);
+                A_ad.erase(A_ad.begin() + i);
                 c.erase(c.begin() + i);
                 i--;
             }
         }
 #endif
 #ifndef DEBUG
-        vector<int> AA;
-        for(int i = 0; i < A.size(); i++){
+        vector<int*> A_ad2;
+        for(int i = 0; i < A_ad.size(); i++){
             if(c[i]){
-                B.push_back(A[i]);
+                B.push_back(A_ad[i]);
             }
             else{
-                AA.push_back(A[i]);
+                A_ad2.push_back(A_ad[i]);
             }
         }
-        A.swap(AA);
+        A_ad.swap(A_ad2);
 #endif
         end = chrono::system_clock::now();
         double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;

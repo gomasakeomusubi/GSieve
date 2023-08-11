@@ -35,6 +35,7 @@ class IdealGSieve{
         int simu_samp_;
         int concurrency_;
         int64 IdealGaussReduce(ListPoint* p);
+        int64 IdealGaussReduce2(ListPoint* p);
         int64 GaussReduce_Parallel();
         // statistics
         long max_list_size_;
@@ -63,7 +64,7 @@ class IdealGSieve{
         void printV();
         long getIterations(){ return iterations_; }
         long getCollisions(){ return collisions_; }
-        long getListSize(){ return L.size(); }
+        long getListSize(){ return max_list_size_; }
         long getSampleVectors(){ return sample_vectors_; }
         ListPoint* getMinVec(){ return *L.begin(); }
         vector<double> getChkTime(){ return chk_time_; }

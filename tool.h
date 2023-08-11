@@ -39,6 +39,7 @@ void MatDoubleFromMatRR(const mat_RR B, mat_double &A);
 bool reduceVector(ListPoint *p1, const ListPoint *p2);
 bool reduceVectorDot(ListPoint *p1, const ListPoint *p2, int64 &dot_p1p2);
 bool check_2red(ListPoint *p1, const ListPoint *p2);
+bool check_3red(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3, ListPoint *p_new);
 void rotation_anti_cyclic(ListPoint* p1);
 void rotation(ListPoint *p1, const vec_int64 &modf);
 void rotation_inv(ListPoint *p1, const vec_int64 &modf);

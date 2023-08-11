@@ -53,7 +53,7 @@ void IdealGSieve::Init(const mat_ZZ &B, KleinSampler* sampler, long index, const
     for(int i = 0; i < n_; i++){
         p = NewListPoint(m_);
         VecZZToListPoint(B[i], p);
-        current_norm = IdealGaussReduce(p);
+        current_norm = IdealGaussReduce2(p);
         if(current_norm < min_norm_){
             min_norm_ = current_norm;
         }
@@ -94,7 +94,7 @@ int64 IdealGSieve::IdealGaussReduce(ListPoint* p){
     // p -> L
     // pより大きいLの要素に対してreduceする
     // p以下のLの要素でもrotationでp以上になる可能性は十分ある
-    // ここではすべてのLの要素に対してrotationしてreduceを行う
+    // ここではすべてのLの要素に対してrotationしてreduceを行う  <- してない
     L.insert(L.begin()+id_L, p);
     id_L++;
 
@@ -104,6 +104,51 @@ int64 IdealGSieve::IdealGaussReduce(ListPoint* p){
             S.push(L[id_L]);
             L.erase(L.begin()+id_L);
             id_L--;
+        }
+    }
+
+    return p->norm;
+}
+
+// こっちのほうが時間はかかるがリストサイズは短い
+int64 IdealGSieve::IdealGaussReduce2(ListPoint* p){
+    // p <- L
+    // Lの全要素に対してreduce
+    // 次元ごとにrotationによるpのノルムの変化の上界・下界が分かれば最適化できる
+
+    bool vec_change = true;
+    while(vec_change){
+        vec_change = false;
+        for(size_t id_L = 0; id_L < L.size(); id_L++){
+            if(IdealreduceVector(p, L[id_L], modf_, index_)){
+                vec_change = true;
+            }
+        }
+    }
+
+    if(p->norm == 0){
+        DeleteListPoint(p);
+        return 0;
+    }
+
+    // insert p into L
+    size_t p_pos;
+    auto itr = lower_bound(L.begin(), L.end(), p, [](const ListPoint *i, const ListPoint *j){
+        return i->norm < j->norm;
+    });
+    p_pos = itr - L.begin();
+    L.insert(itr, p);
+
+    // p -> L
+    // ここではすべてのLの要素に対してrotationしてreduceを行う
+
+    for(size_t id_L = 0; id_L < L.size(); id_L++){
+        if(id_L == p_pos) continue;
+        if(IdealreduceVector(L[id_L], p, modf_, index_)){
+            S.push(L[id_L]);
+            L.erase(L.begin()+id_L);
+            id_L--;
+            if(id_L < p_pos) p_pos--;
         }
     }
 
@@ -278,7 +323,7 @@ void IdealGSieve::IdealGaussSieve(){
 
         // time2
         // start = chrono::system_clock::now();
-        current_norm = IdealGaussReduce(new_v);
+        current_norm = IdealGaussReduce2(new_v);
         // end = chrono::system_clock::now();
         // time2 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
         
