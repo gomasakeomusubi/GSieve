@@ -51,117 +51,49 @@ int main(int argc, char** argv){
         dim = B.NumRows();
         seed = -1;
     }
+    long num_rots = dim + 1;
+    cout << num_rots << endl;
+    // anti-cyclicならdim
+    long chk_dim = dim;
+    while(chk_dim % 2 == 0) chk_dim /= 2;
+    if(chk_dim == 1) num_rots--;
 
-    // G_BKZ_FP(B, 0.99, 20);
-    ZZ det2;
-    LLL(det2, B, 99, 100, 0);
+    G_BKZ_FP(B, 0.99, 20);
+    // ZZ det2;
+    // LLL(det2, B, 99, 100, 0);
 
     chrono::system_clock::time_point start, end;
 
     KleinSampler sampler;
     IdealGSieve Igs;
     start = chrono::system_clock::now();
-    Igs.Init(B, &sampler, index, modf);
+    Igs.Init(B, &sampler, num_rots, modf);
     Igs.SetGoalNorm(goal_norm);
     Igs.IdealGaussSieve();
     end = chrono::system_clock::now();
     double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
 
     ListPoint* lp = Igs.getMinVec();
-    cout << "vector    : " << lp->v << endl << "norm      : " << lp->norm << "/" << sqrt(lp->norm) << endl;
+    cout << "vector    : " << lp->v << endl;
+    cout << "norm      : " << lp->norm << "/" << sqrt(lp->norm) << endl;
     cout << "times(ms) : " << elapsed << endl;
     cout << "size of L : " << Igs.getListSize() << endl;
     cout << "samples   : " << Igs.getSampleVectors() << endl;
     cout << "collisions: " << Igs.getCollisions() << endl;
     cout << "Iterations: " << Igs.getIterations() << endl;
 
-    // // G_BKZ_FP(B, 0.99, 20);
-    // ZZ det2;
-    // LLL(det2, B, 99, 100, 0);
+    vector<string> item = {"norm", "time", "|L|", "samp", "coll", "iter"};
+    vector<double> record(item.size());
+    record[0] = sqrt(lp->norm);
+    record[1] = elapsed;
+    record[2] = Igs.getListSize();
+    record[3] = Igs.getSampleVectors();
+    record[4] = Igs.getCollisions();
+    record[4] = Igs.getIterations();
+    string denotes = "dim," + to_string(dim) + ",index," + to_string(index);
+    out2csv("IGS_test", record, item, denotes);
 
-    // int exp_time = 1;   // 繰り返し回数
-    // // 評価項目
-    // vector<string> index = {"time(ms)", "time1", "time2", "time3", "L->V",
-    //                          "V->V", "V->L", "list_size", "sample_vectors",
-    //                           "collisions", "iterations", "norm"};
-    // vector<int> list_concurrency = {1, 2, 4, 6, 8, 12, 16, 20};
-    // vector<int> list_simu_samp = {120, 160, 200, 240};
-    // int size_index = (int)index.size();
-    // chrono::system_clock::time_point start, end;
-
-    #if 0
-    // GS
-    cout << "GS:" << endl;
-    vector<double> rec1[size_index];
-    for(int i = 0; i < exp_time; i++){
-        KleinSampler sampler;
-        IdealGSieve Igs;
-
-        gs.Init(B, &sampler);
-
-        gs.SetGoalNorm(goal_norm);
-
-        start = chrono::system_clock::now();
-        gs.GaussSieve();
-        end = chrono::system_clock::now();
-        double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
-
-        ListPoint* lp = gs.getMinVec();
-        cout << "vec: " << lp->v << endl << "norm: " << lp->norm << "/" << sqrt(lp->norm) << endl;
-
-        // vector<double> chk_time = gs.getChkTime();
-        rec1[0].emplace_back(elapsed);
-        rec1[1].emplace_back(gs.getListSize());
-        rec1[2].emplace_back(gs.getSampleVectors());
-        rec1[3].emplace_back(gs.getCollisions());
-        rec1[4].emplace_back(gs.getIterations());
-        rec1[5].emplace_back(gs.getMinVec()->norm);
-    }
-    string denotes1 = "dim," + to_string(B.NumRows());
-    out2csv("GS_test", rec1, index, denotes1);
-    
-    #endif
-
-    #if 0
-    // GS_P
-    cout << "GS_P:" << endl;
-    vector<double> rec2[size_index];
-    for(int i = 0; i < 3; i++){
-        KleinSampler sampler;
-        GSieve gs;
-        // simu_samp = list_simu_samp[i];
-
-        gs.Init(B, &sampler);
-
-        gs.SetGoalNorm(goal_norm);
-        gs.SetConcurrency(concurrency);
-        gs.SetSimultaneousSamples(simu_samp);
-
-        start = chrono::system_clock::now();
-        gs.GaussSieve_Parallel();
-        end = chrono::system_clock::now();
-        double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
-        
-        ListPoint* lp = gs.getMinVec();
-        cout << "vec: " << lp->v << endl << "norm: " << lp->norm << "/" << sqrt(lp->norm) << endl;
-
-        rec2[0].emplace_back(elapsed);
-        rec2[1].emplace_back(gs.getChkTime()[0]);
-        rec2[2].emplace_back(gs.getChkTime()[1]);
-        rec2[3].emplace_back(gs.getChkTime()[2]);
-        rec2[4].emplace_back(gs.getTimeL2V());
-        rec2[5].emplace_back(gs.getTimeV2V());
-        rec2[6].emplace_back(gs.getTimeV2L());
-        rec2[7].emplace_back(gs.getListSize());
-        rec2[8].emplace_back(gs.getSampleVectors());
-        rec2[9].emplace_back(gs.getCollisions());
-        rec2[10].emplace_back(gs.getIterations());
-        rec2[11].emplace_back(gs.getMinVec()->norm);
-    }
-    string denotes2 = "dim," + to_string(B.NumRows()) + ",sampling," + to_string(simu_samp) + ",concurrency," + to_string(concurrency);
-    out2csv("GS_P_test", rec2, index, denotes2);
-
-    #endif
+    // Igs.TestRotation(Igs.getMinVec(), index + 3);
 
     return 0;
 }

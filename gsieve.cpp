@@ -51,8 +51,8 @@ void GSieve::Init(const mat_ZZ &B, KleinSampler* sampler){
     for(int i = 0; i < n_; i++){
         p = NewListPoint(m_);
         VecZZToListPoint(B[i], p);
-        // current_norm = GaussReduce(p);
-        current_norm = TripleReduce(p);
+        current_norm = GaussReduce(p);
+        // current_norm = TripleReduce(p);
         if(current_norm < min_norm_){
             min_norm_ = current_norm;
         }
@@ -177,7 +177,7 @@ int64 GSieve::TripleReduce(ListPoint* p){
         //  minkowski reduce
         for(int i = 0; i < p_pos; i++){
             for(int j = i+1; j < p_pos; j++){
-                if(check_3red(L[i], L[j], p, lp)){
+                if(check_red3(L[i], L[j], p, lp)){
                     for(int d = 0; d < m_; d++) p->v[d] = lp->v[d];
                     p->norm = lp->norm;
                     ok = true;
@@ -223,14 +223,14 @@ int64 GSieve::TripleReduce(ListPoint* p){
             if(vec_change_L[j]) continue;
             if(j == p_pos) continue;
             if(j < p_pos){
-                if(check_3red(L[j], p, L[i], lp)){
+                if(check_red3(L[j], p, L[i], lp)){
                     for(int d = 0; d < m_; d++) L[i]->v[d] = lp->v[d];
                     L[i]->norm = lp->norm;
                     vec_change_L[i] = true;
                 }
             }
             else{
-                if(check_3red(p, L[j], L[i], lp)){
+                if(check_red3(p, L[j], L[i], lp)){
                     for(int d = 0; d < m_; d++) L[i]->v[d] = lp->v[d];
                     L[i]->norm = lp->norm;
                     vec_change_L[i] = true;
@@ -425,8 +425,8 @@ void GSieve::GaussSieve(){
         // time2
         // start = chrono::system_clock::now();
 
-        // current_norm = GaussReduce(new_v);
-        current_norm = TripleReduce(new_v);
+        current_norm = GaussReduce(new_v);
+        // current_norm = TripleReduce(new_v);
         // cout << L.size() << " " << flush;
 
         // end = chrono::system_clock::now();

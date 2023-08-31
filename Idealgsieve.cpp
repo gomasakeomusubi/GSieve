@@ -12,6 +12,18 @@ void IdealGSieve::printV(){
     cout << endl;
 }
 
+ListPoint* IdealGSieve::getMinVec(){
+    if(L[0]->norm == min_norm_) return L[0];
+    while(!S.empty()){
+        if(S.top()->norm == min_norm_) return S.top();
+        if(S.top()->norm < min_norm_) cout << S.top()->norm << endl;
+        DeleteListPoint(S.top());
+        S.pop();
+    }
+
+    return L[0];
+}
+
 void IdealGSieve::CleanUp(){
     for(size_t i = 0; i < L.size(); i++) DeleteListPoint(L[i]);
     L.clear();
@@ -23,11 +35,11 @@ void IdealGSieve::CleanUp(){
     }
 }
 
-void IdealGSieve::Init(const mat_ZZ &B, KleinSampler* sampler, long index, const vec_ZZ &modf){
+void IdealGSieve::Init(const mat_ZZ &B, KleinSampler* sampler, long num_rots, const vec_ZZ &modf){
     n_ = B.NumRows();
     m_ = B.NumCols();
     sampler_ = sampler;
-    index_ = index;
+    num_rots_ = num_rots;
     iterations_ = 0;
     collisions_ = 0;
     sample_vectors_ = 0;
@@ -38,6 +50,12 @@ void IdealGSieve::Init(const mat_ZZ &B, KleinSampler* sampler, long index, const
 
     modf_.SetLength(n_);
     for(int i = 0; i < n_; i++) modf_[i] = to_long(modf[i]);
+
+    ListPoint *ltmp = NewListPoint(n_);
+    VecZZToListPoint(B[0], ltmp);
+    num_rots_ = calc_rot_num(ltmp, modf_);
+    DeleteListPoint(ltmp);
+    cout << "num_rots: " << num_rots_ << endl;
 
     // mat_ZZ rot;
     // rot.SetDims(n_, n_);
@@ -67,6 +85,48 @@ void IdealGSieve::Init(const mat_ZZ &B, KleinSampler* sampler, long index, const
     timeV2L = 0;
 }
 
+void IdealGSieve::TestRotation(ListPoint *p1, long rep){
+    int dim = p1->v.length();
+    ListPoint *lp = NewListPoint(dim);
+    ListPoint *lp2 = NewListPoint(dim);
+    for(int i = 0; i < dim; i++) lp2->v[i] = p1->v[i];
+    lp2->norm = p1->norm;
+    lp = p1;
+    for(int i = 0; i < rep; i++){
+        printf("%2d: ", i);
+        // cout << p1->norm << " / [";
+        // for(int d = 0; d < dim; d++) cout << p1->v[d] << " ";
+        // cout << "]" << endl;
+        // rotation(p1, modf_);
+        cout << lp->norm << " / [";
+        // for(int d = 0; d < dim; d++) cout << lp->v[d] << " ";
+        // cout << "]" << endl;
+        rotation(lp, modf_);
+    }
+    cout << endl;
+
+    DeleteListPoint(lp);
+    DeleteListPoint(lp2);
+}
+
+// check_red2と同じ
+bool IdealGSieve::check_red2_2(const ListPoint *p1, const ListPoint *p2){
+    // input: p1, p2 (p1 <= p2)
+    // output: 2-reduced p1, p2
+    //         if reduced 1 else 0.
+
+    long dims = p1->v.length();
+    int64 dot = 0;
+
+    for(int i = 0; i < dims; i++){
+        dot += p1->v[i] * p2->v[i];
+    }
+    if(2 * abs(dot) <= p1->norm){       // p1? p2?
+        return true;    // 2-reduced.
+    }
+    else return false;  // not 2-reduced.
+}
+
 int64 IdealGSieve::IdealGaussReduce(ListPoint* p){
     // p <- L
     // Lが昇順に並んでいるので、pより大きいLの要素はスルー
@@ -80,7 +140,7 @@ int64 IdealGSieve::IdealGaussReduce(ListPoint* p){
             if(p->norm < L[id_L]->norm){
                 break;
             }
-            if(IdealreduceVector(p, L[id_L], modf_, index_)){
+            if(IdealreduceVector(p, L[id_L], modf_, num_rots_)){
                 vec_change = true;
             }
         }
@@ -100,7 +160,7 @@ int64 IdealGSieve::IdealGaussReduce(ListPoint* p){
 
     // p -> L
     for(; id_L < L.size(); id_L++){
-        if(IdealreduceVector(L[id_L], p, modf_, index_)){
+        if(IdealreduceVector(L[id_L], p, modf_, num_rots_)){
             S.push(L[id_L]);
             L.erase(L.begin()+id_L);
             id_L--;
@@ -112,15 +172,138 @@ int64 IdealGSieve::IdealGaussReduce(ListPoint* p){
 
 // こっちのほうが時間はかかるがリストサイズは短い
 int64 IdealGSieve::IdealGaussReduce2(ListPoint* p){
+    vector<bool> vec_change_L(L.size(), false);
+    bool loop = true;
+    while(loop){
+        loop = false;
+        // p <- L
+        // Lの全要素に対してreduce
+        // 次元ごとにrotationによるpのノルムの変化の上界・下界が分かれば最適化できる
+        bool vec_change = true;
+        while(vec_change){
+            vec_change = false;
+            for(size_t id_L = 0; id_L < L.size(); id_L++){
+                if(vec_change_L[id_L]) continue;
+                int res = IdealreduceVector2(p, L[id_L], modf_, num_rots_);
+                if(res == 1){
+                    vec_change = true;
+                }
+                else if(res == 2){
+                    vec_change_L[id_L] = true;
+                }
+            }
+        }
+
+        if(p->norm == 0) break;
+
+        // p -> L
+        // ここではすべてのLの要素に対してrotationしてreduceを行う
+        for(size_t id_L = 0; id_L < L.size(); id_L++){
+            if(vec_change_L[id_L]) continue;
+            int res = IdealreduceVector2(L[id_L], p, modf_, num_rots_);
+            if(res == 1){
+                vec_change_L[id_L] = true;
+                // loop = true;
+                // break;
+            }
+            else if(res == 2){
+                loop = true;
+                break;
+            }
+        }
+    }
+
+    // L -> S
+    vector<ListPoint*> L_tmp;
+    int sz_L = vec_change_L.size();
+    for(int i = 0; i < sz_L; i++){
+        if(vec_change_L[i]) S.push(L[i]);
+        else L_tmp.emplace_back(L[i]);
+    }
+    L.swap(L_tmp);
+
+    if(p->norm == 0){
+        DeleteListPoint(p);
+        return 0;
+    }
+
+    // insert p into L
+    auto itr = lower_bound(L.begin(), L.end(), p, [](const ListPoint *i, const ListPoint *j){
+        return i->norm < j->norm;
+    });
+    L.insert(itr, p);
+
+    return p->norm;
+}
+
+// rotationしたベクトルが短ければLにpush
+int64 IdealGSieve::IdealGaussReduce4(ListPoint* p){
     // p <- L
-    // Lの全要素に対してreduce
-    // 次元ごとにrotationによるpのノルムの変化の上界・下界が分かれば最適化できる
+    // Lが昇順に並んでいるので、pより大きいLの要素はスルー
+    // スルーした要素の中にrotationでpより短くなるものが存在する可能性はある
 
     bool vec_change = true;
+    bool loop = true;
+    vector<bool> L_change(L.size(), false);
+    while(loop){
+        loop = false;
+        while(vec_change){
+            vec_change = false;
+            for(size_t id_L = 0; id_L < L.size(); id_L++){
+                int res = IdealreduceVector2(p, L[id_L], modf_, num_rots_);
+                if(res % 2 == 1){
+                    vec_change = true;
+                }
+                if(res >= 2){
+                    L_change[id_L] = true;
+                }
+            }
+        }
+
+        if(p->norm == 0){
+            DeleteListPoint(p);
+            return 0;
+        }
+
+        // p -> L
+        for(size_t id_L = 0; id_L < L.size(); id_L++){
+            int res = IdealreduceVector2(L[id_L], p, modf_, num_rots_);
+            if(res >= 2){
+                loop = true;
+            }
+            if(res % 2 == 1){
+                L_change[id_L] = true;
+            }
+        }
+    }
+
+    vector<ListPoint*> tmp;
+    bool pin = false;
+    for(size_t id_L = 0; id_L < L.size(); id_L++){
+        if(L_change[id_L]) S.push(L[id_L]);
+        else{
+            if(!pin && L[id_L]->norm > p->norm){
+                tmp.emplace_back(p);
+                pin = true;
+            }
+            tmp.emplace_back(L[id_L]);
+        }
+    }
+
+    return p->norm;
+}
+
+int64 IdealGSieve::red2_notInsert(ListPoint* p, int &p_pos){
+    // p <- L
+    bool vec_change = true;
+    size_t id_L;
     while(vec_change){
         vec_change = false;
-        for(size_t id_L = 0; id_L < L.size(); id_L++){
-            if(IdealreduceVector(p, L[id_L], modf_, index_)){
+        for(id_L = 0; id_L < L.size(); id_L++){
+            if(p->norm < L[id_L]->norm){
+                break;
+            }
+            if(reduceVector(p, L[id_L])){
                 vec_change = true;
             }
         }
@@ -131,26 +314,116 @@ int64 IdealGSieve::IdealGaussReduce2(ListPoint* p){
         return 0;
     }
 
-    // insert p into L
-    size_t p_pos;
-    auto itr = lower_bound(L.begin(), L.end(), p, [](const ListPoint *i, const ListPoint *j){
-        return i->norm < j->norm;
-    });
-    p_pos = itr - L.begin();
-    L.insert(itr, p);
+    // p はまだLに挿入しない
+    p_pos = id_L;
 
     // p -> L
-    // ここではすべてのLの要素に対してrotationしてreduceを行う
-
-    for(size_t id_L = 0; id_L < L.size(); id_L++){
-        if(id_L == p_pos) continue;
-        if(IdealreduceVector(L[id_L], p, modf_, index_)){
+    for(; id_L < L.size(); id_L++){
+        if(reduceVector(L[id_L], p)){
             S.push(L[id_L]);
             L.erase(L.begin()+id_L);
             id_L--;
-            if(id_L < p_pos) p_pos--;
         }
     }
+
+    return p->norm;
+}
+
+int64 IdealGSieve::TripleReduce(ListPoint* p){
+    int64 current_norm;
+    int p_pos;
+    ListPoint* lp = NewListPoint(m_);
+
+    // p <- L
+    // cout << "--- p <- L ---" << endl;
+    bool ok = true;
+    while(ok){
+        ok = false;
+
+        //  pair-wise reduce
+        current_norm = red2_notInsert(p, p_pos);
+        if(current_norm == 0){
+            DeleteListPoint(lp);
+            return 0;
+        }
+
+        //  minkowski reduce
+        for(int i = 0; i < p_pos; i++){
+            for(int j = i+1; j < p_pos; j++){
+                if(check_red3(L[i], L[j], p, lp)){
+                    for(int d = 0; d < m_; d++) p->v[d] = lp->v[d];
+                    p->norm = lp->norm;
+                    ok = true;
+                    break;
+                }
+            }
+
+            if(ok) break;
+        }
+    }
+
+    // insert p into L
+    // cout << "--- insert p into L ---" << endl;
+    vector<ListPoint*>::iterator itr = lower_bound(L.begin(), L.end(), p, [](const ListPoint* i, const ListPoint* j){
+        return i->norm < j->norm;
+    });
+    if(itr != L.end()){
+        p_pos = itr - L.begin();
+        L.insert(itr, p);
+    }
+    else{
+        L.emplace_back(p);
+        p_pos = L.size() - 1;
+    }
+
+    #ifdef DEBUG
+    bool red2 = true;
+    for(int i = 0; i < L.size(); i++){
+        for(int j = i+1; j < L.size(); j++){
+            if(L[i]->norm > L[j]->norm) cout << "L is not increasing." << endl;
+            if(!check_2red2(L[i], L[j])) red2 = false;
+        }
+    }
+    if(!red2) cout << "error: L is not pair-wised red." << endl;
+    #endif
+
+    // p -> L
+    // cout << "--- p -> L ---" << endl;
+    vector<bool> vec_change_L(L.size(), false);
+
+    for(int i = p_pos + 1; i < (int)L.size(); i++){
+        for(int j = 0; j < i; j++){
+            if(vec_change_L[j]) continue;
+            if(j == p_pos) continue;
+            if(j < p_pos){
+                if(check_red3(L[j], p, L[i], lp)){
+                    for(int d = 0; d < m_; d++) L[i]->v[d] = lp->v[d];
+                    L[i]->norm = lp->norm;
+                    vec_change_L[i] = true;
+                }
+            }
+            else{
+                if(check_red3(p, L[j], L[i], lp)){
+                    for(int d = 0; d < m_; d++) L[i]->v[d] = lp->v[d];
+                    L[i]->norm = lp->norm;
+                    vec_change_L[i] = true;
+                }
+            }
+            if(vec_change_L[i]) break;
+        }
+    }
+
+    // cout << "--- push p into S ---" << endl;
+    for(size_t i = 0; i < L.size(); i++){
+        if(vec_change_L[i]){
+            S.push(L[i]);
+            L.erase(L.begin()+i);
+            vec_change_L.erase(vec_change_L.begin()+i);
+            i--;
+        }
+    }
+
+    DeleteListPoint(lp);
 
     return p->norm;
 }
@@ -324,6 +597,7 @@ void IdealGSieve::IdealGaussSieve(){
         // time2
         // start = chrono::system_clock::now();
         current_norm = IdealGaussReduce2(new_v);
+        // cout << collisions_ << " " << flush;
         // end = chrono::system_clock::now();
         // time2 += (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
         

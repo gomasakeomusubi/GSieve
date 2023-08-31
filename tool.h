@@ -30,6 +30,7 @@ struct ListPoint {
 };
 
 ListPoint* NewListPoint(long dims);
+void CopyListPoint(ListPoint* new_p, const ListPoint* old_p);
 void DeleteListPoint(ListPoint* p);
 
 void VecZZToListPoint(const vec_ZZ &v, ListPoint* p);
@@ -38,13 +39,18 @@ void MatDoubleFromMatRR(const mat_RR B, mat_double &A);
 
 bool reduceVector(ListPoint *p1, const ListPoint *p2);
 bool reduceVectorDot(ListPoint *p1, const ListPoint *p2, int64 &dot_p1p2);
-bool check_2red(ListPoint *p1, const ListPoint *p2);
-bool check_3red(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3, ListPoint *p_new);
+bool check_red2(ListPoint *p1, const ListPoint *p2);
+bool check_red3(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3, ListPoint *p_new);
+
 void rotation_anti_cyclic(ListPoint* p1);
 void rotation(ListPoint *p1, const vec_int64 &modf);
+void rotation(ListPoint* p1,  const ListPoint* p2, const vec_int64 &modf);
 void rotation_inv(ListPoint *p1, const vec_int64 &modf);
-bool IdealreduceVector(ListPoint *p1, const ListPoint *p2, const vec_int64 &modf, int index);
+int calc_rot_num(const ListPoint* p, const vec_int64 &modf);
+bool IdealreduceVector(ListPoint *p1, const ListPoint *p2, const vec_int64 &modf, int num_rots);
+int IdealreduceVector2(ListPoint *p1, ListPoint *p2, const vec_int64 &modf, int num_rots);
 
 void out2csv(string filename, vector<double> rec[], vector<string> index, string denotes);
+void out2csv(string filename, vector<double> rec, vector<string> index, string denotes);
 
 #endif
