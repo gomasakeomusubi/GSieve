@@ -28,14 +28,18 @@ class IdealGSieve{
         KleinSampler* sampler_;
         int64 goal_norm_;
         int64 min_norm_;
-        long index_;
+        long num_rots_;
         vec_int64 modf_;
         // mat_int64 rot_;
         // vector<mat_int64> rot_;
         int simu_samp_;
         int concurrency_;
         int64 IdealGaussReduce(ListPoint* p);
-        int64 IdealGaussReduce2(ListPoint* p);
+        int64 IdealGaussReduce2(ListPoint* p);  // rotation前のノルムに関わらずrotation
+        int64 IdealGaussReduce4(ListPoint* p);  // rotationしたベクトルと互いに簡約
+        int64 red2_notInsert(ListPoint* p, int &p_pos);
+        bool check_red2_2(const ListPoint *p1, const ListPoint *p2);
+        int64 TripleReduce(ListPoint* p);
         int64 GaussReduce_Parallel();
         // statistics
         long max_list_size_;
@@ -51,7 +55,7 @@ class IdealGSieve{
             CleanUp();
         }
         void CleanUp();
-        void Init(const mat_ZZ &B, KleinSampler* sampler, long index, const vec_ZZ &modf);
+        void Init(const mat_ZZ &B, KleinSampler* sampler, long num_rots, const vec_ZZ &modf);
         void SetGoalNorm(long norm){ goal_norm_ = norm; }
         void SetConcurrency(long num){ concurrency_ = num; }
         void SetSimultaneousSamples(long num){ simu_samp_ = num; }
@@ -66,11 +70,13 @@ class IdealGSieve{
         long getCollisions(){ return collisions_; }
         long getListSize(){ return max_list_size_; }
         long getSampleVectors(){ return sample_vectors_; }
-        ListPoint* getMinVec(){ return *L.begin(); }
+        ListPoint* getMinVec();
         vector<double> getChkTime(){ return chk_time_; }
         double getTimeL2V(){ return timeL2V; }
         double getTimeV2V(){ return timeV2V; }
         double getTimeV2L(){ return timeV2L; }
+
+        void TestRotation(ListPoint *p1, long rep);
 };
 
 #endif
