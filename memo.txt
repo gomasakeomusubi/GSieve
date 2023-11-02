@@ -6,3 +6,27 @@ g++ main_Ideal.cpp tool.cpp sampler.cpp Idealgsieve.cpp -lm -lgmp -lntl -lpthrea
 
 // 50 dim, seed 0
 ./a.out -f input.txt -g 3453314
+
+<関数の定義分け>
+    #if LTYPE == 1
+        #define IdealGR(p) IdealGaussSieve::IdealGaussReduce_anti_cyclic(ListPoint* p)
+    #else
+        #define IdealGR(p) IdealGaussSieve::IdealGaussReduce2(ListPoint* p)
+    #endif
+
+<rotation用行列>
+    mat_ZZ rot;
+    rot.SetDims(n_, n_);
+    clear(rot);
+    for(int i = 0; i < n_-1; i++){
+        rot[i][i+1] = 1;
+    }
+    for(int i = 0; i < n_; i++) rot[n_-1][i] = -modf[n_-i];
+    MatInt64FromMatZZ(rot, rot_);
+
+<時間計測(実時間)>
+    chrono::system_clock::time_point start, end;
+    start = chrono::system_clock::now();
+    ---prosess---
+    end = chrono::system_clock::now();
+    double elapsed = (double)chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;

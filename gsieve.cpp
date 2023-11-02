@@ -1,17 +1,5 @@
 #include "gsieve.h"
 
-void GSieve::printL(){
-    cout << "L:" << endl;
-    for(auto v: L) cout << v->norm << "/" << v << " ";
-    cout << endl;
-}
-
-void GSieve::printV(){
-    cout << "V:" << endl;
-    for(auto v: V) cout << v->norm << " ";
-    cout << endl;
-}
-
 ListPoint* GSieve::getMinVec(){
     if(L[0]->norm == min_norm_) return L[0];
     while(!S.empty()){
@@ -41,6 +29,8 @@ void GSieve::Init(const mat_ZZ &B, KleinSampler* sampler){
     iterations_ = 0;
     collisions_ = 0;
     sample_vectors_ = 0;
+    innerpros_ = 0;
+    reductions_ = 0;
     CleanUp();
 
     sampler_->Init(B);
@@ -93,8 +83,10 @@ int64 GSieve::GaussReduce(ListPoint* p){
             if(p->norm < L[id_L]->norm){
                 break;
             }
+            innerpros_++;
             if(reduceVector(p, L[id_L])){
                 vec_change = true;
+                reductions_++;
             }
         }
     }
@@ -110,10 +102,12 @@ int64 GSieve::GaussReduce(ListPoint* p){
 
     // p -> L
     for(; id_L < L.size(); id_L++){
+        innerpros_++;
         if(reduceVector(L[id_L], p)){
             S.push(L[id_L]);
             L.erase(L.begin()+id_L);
             id_L--;
+            reductions_++;
         }
     }
 
@@ -156,6 +150,7 @@ int64 GSieve::TripleReduce_2red(ListPoint* p, int &p_pos){
     return p->norm;
 }
 
+// O(n^2L)
 int64 GSieve::TripleReduce(ListPoint* p){
     int64 current_norm;
     int p_pos;
@@ -224,15 +219,13 @@ int64 GSieve::TripleReduce(ListPoint* p){
             if(j == p_pos) continue;
             if(j < p_pos){
                 if(check_red3(L[j], p, L[i], lp)){
-                    for(int d = 0; d < m_; d++) L[i]->v[d] = lp->v[d];
-                    L[i]->norm = lp->norm;
+                    CopyListPoint(L[i], lp);
                     vec_change_L[i] = true;
                 }
             }
             else{
                 if(check_red3(p, L[j], L[i], lp)){
-                    for(int d = 0; d < m_; d++) L[i]->v[d] = lp->v[d];
-                    L[i]->norm = lp->norm;
+                    CopyListPoint(L[i], lp);
                     vec_change_L[i] = true;
                 }
             }

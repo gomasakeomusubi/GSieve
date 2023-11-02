@@ -29,6 +29,12 @@ void DeleteListPoint(ListPoint* p){
     delete p;
 }
 
+void printList(vector<ListPoint*> list, string listname){
+    cout << listname << endl;
+    for(auto v: list) cout << v->norm << " ";
+    cout << endl;
+}
+
 void VecZZToListPoint(const vec_ZZ &v, ListPoint* p){
     long dims = v.length();
     p->v.SetLength(dims);
@@ -61,6 +67,31 @@ void MatDoubleFromMatRR(const mat_RR B, mat_double &A){
     }
 }
 
+int check_lattice(const vec_ZZ &modf){
+    vector<bool> Lattice_type(4, true); // cyclic, anti-cyclic, prime-cyclotomic, others
+
+    long dim = modf.length();
+    if(modf[0] == 1) Lattice_type[0] = false;
+    else if(modf[0] == -1) Lattice_type[1] = false, Lattice_type[2] = false; 
+    for(int i = 1; i < dim-1; i++){
+        if(modf[i] != 1) Lattice_type[2] = false;
+        if(modf[i] != 0) Lattice_type[0] = false, Lattice_type[1] = false;
+    }
+    if(modf[dim-1] != 1) Lattice_type[0] = false, Lattice_type[1] = false, Lattice_type[2] = false;
+
+    for(int i = 0; i < 4; i++){
+        if(Lattice_type[i]) return i;
+    }
+
+    return -1;
+}
+
+double svbound(const mat_ZZ &B, const RR p){
+    double alpha = sqrt(B.NumRows() / (double)(2 * M_PI * exp(1)));
+    double beta = to_double(pow(p, 1 / to_RR(B.NumRows())));
+    return alpha * beta;
+}
+
 bool reduceVector(ListPoint *p1, const ListPoint *p2){
     long dims = p1->v.length();
     int64 dot = 0;
@@ -84,7 +115,7 @@ bool reduceVector(ListPoint *p1, const ListPoint *p2){
     return true;
 }
 
-bool reduceVectorDot(ListPoint *p1, const ListPoint *p2, int64 &dot_p1p2){
+bool reduceVectorDot(ListPoint *p1, const ListPoint *p2, int64 dot_p1p2){
     long dims = p1->v.length();
     int64 dot = 0;
 
@@ -92,20 +123,14 @@ bool reduceVectorDot(ListPoint *p1, const ListPoint *p2, int64 &dot_p1p2){
         return false;
     }
 
-    for(int i = 0; i < dims; i++){
-        dot += p1->v[i] * p2->v[i];
-    }
-    dot_p1p2 = dot;
-    if(2 * abs(dot) <= p2->norm){
+    if(2 * abs(dot_p1p2) <= p2->norm){
         return false;
     }
-    long q = round((double)dot / p2->norm);
+    long q = round((double)dot_p1p2 / p2->norm);
     for(int i = 0; i < dims; i++){
         p1->v[i] -= q * p2->v[i];
     }
     p1->norm = p1->norm - 2 * q * dot + q * q * p2->norm;
-
-    dot_p1p2 -= q * p2->norm;
     
     return true;
 }
@@ -113,7 +138,7 @@ bool reduceVectorDot(ListPoint *p1, const ListPoint *p2, int64 &dot_p1p2){
 bool check_red2(const ListPoint *p1, const ListPoint *p2){
     // input: p1, p2 (p1 <= p2)
     // output: 2-reduced p1, p2
-    //         if reduced 1 else 0.
+    //         if unchanged 1 else 0.
 
     long dims = p1->v.length();
     int64 dot = 0;
@@ -121,20 +146,23 @@ bool check_red2(const ListPoint *p1, const ListPoint *p2){
     for(int i = 0; i < dims; i++){
         dot += p1->v[i] * p2->v[i];
     }
-    if(2 * abs(dot) <= p2->norm){       // p1? p2?...
+    if(2 * abs(dot) <= p1->norm){       // p1? p2?...
         return true;    // 2-reduced.
     }
-    else return false;  // not 2-reduced.
+    else{
+        return false;   // not 2-reduced.
+    }
 }
 
+// O(n)
 bool check_red3(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3, ListPoint *p_new){
     // input : p1, p2, p3 (p1 <= p2 <= p3)
     // output: 3-reduced p_new,
     //         if reduced 1 else 0.
 
-    if(!check_red2(p1, p2)) return false;
-    if(!check_red2(p1, p3)) return false;
-    if(!check_red2(p2, p3)) return false;
+    // if(!check_red2(p1, p2)) return false;
+    // if(!check_red2(p1, p3)) return false;
+    // if(!check_red2(p2, p3)) return false;
 
     int64 dot12 = 0;
     int64 dot13 = 0;
@@ -202,6 +230,16 @@ void rotation(ListPoint* p1,  const ListPoint* p2, const vec_int64 &modf){
     p1->norm += p1->v[0] * p1->v[0];
 }
 
+void direct_rotation(ListPoint* p1, const vec_int64 &modf, int num_of_rot){
+    long dims = p1->v.length();
+    int64 e = p1->v[dims - num_of_rot];
+    ListPoint* tmp = NewListPoint(dims);
+    for(int i = 0; i < dims; i++) tmp->v[i] = p1->v[i] - e;
+    for(int i = 0; i < dims; i++) p1->v[i] = tmp->v[(i - num_of_rot + dims) % dims];
+    p1->v[dims - num_of_rot] = - e;
+    DeleteListPoint(tmp);
+}
+
 void rotation_inv(ListPoint* p1, const vec_int64 &modf){
     long dims = p1->v.length();
     int64 norm = 0;
@@ -248,44 +286,19 @@ int calc_rot_num(const ListPoint* p, const vec_int64 &modf){
     return itr - 1;
 }
 
-// rotationでp以下のノルムをもつvectorが出たときのみreduce
-bool IdealreduceVector(ListPoint *p1, const ListPoint *p2, const vec_int64 &modf, int num_rots){
-    ListPoint *lp = NewListPoint(p2->v.length());
-    CopyListPoint(lp, p2);
-
-    bool vec_change = false;
-    bool loop = true;
-    while(loop){
-        loop = false;
-        for(int i = 0; i < num_rots; i++, rotation(lp, modf)){
-            if(lp->norm > p1->norm){
-                continue;
-            }
-            if(reduceVector(p1, lp)){
-                vec_change = true;
-                loop = true;
-            }
-        }
-    }
-
-    DeleteListPoint(lp);
-
-    return vec_change;
-}
-
 // rotationで出たベクトルとpを比較してnormが長い方をreduce
 // output: if p1(p2/no one) was reduced, 1(2/0).
-int IdealreduceVector2(ListPoint *p1, ListPoint *p2, const vec_int64 &modf, int num_rots){
+// O(n^2)
+int IdealreduceVector(ListPoint *p1, ListPoint *p2, const vec_int64 &modf, int num_rots){
     long dims = p2->v.length();
     ListPoint* lp = NewListPoint(dims);
     CopyListPoint(lp, p2);
-    int64 init_p1 = p1->norm;
 
     ListPoint* tmp = NewListPoint(dims);
     for(int i = 0; i < num_rots; i++){
         CopyListPoint(tmp, lp);
         if(tmp->norm > p1->norm){
-            if(reduceVector(tmp, p1) && tmp->norm < p2->norm && tmp->norm > 0){
+            if(reduceVector(tmp, p1) && (tmp->norm < p2->norm)){
                 CopyListPoint(p2, tmp);
                 DeleteListPoint(tmp);
                 DeleteListPoint(lp);
@@ -294,23 +307,51 @@ int IdealreduceVector2(ListPoint *p1, ListPoint *p2, const vec_int64 &modf, int 
         }
         else{
             if(reduceVector(p1, tmp)){
-                if(p1->norm == 0 && i > 0){
-                    CopyListPoint(p1, tmp);
-                }
-                else{
+                // ここを有効にするとcollisionが減るため実行時間は増加、リストサイズは増減？
+                // 一応rot(p2)同士で確認するためリストサイズは減る...はず...
+                // 53dim, prime では i > 1 が一番効率いい（謎）
+                // if(p1->norm == 0 && (i > 0)){
+                //     CopyListPoint(p1, tmp);
+                // }
+                // else{
                     DeleteListPoint(tmp);
                     DeleteListPoint(lp);
                     return 1;
-                }
+                // }
             }
         }
+        
         rotation(lp, modf);
+        if(p2->norm > lp->norm){
+            CopyListPoint(p2, lp);
+            DeleteListPoint(tmp);
+            DeleteListPoint(lp);
+            return 2;
+        }
     }
 
     DeleteListPoint(tmp);
     DeleteListPoint(lp);
 
     return 0;
+}
+
+// p1 > p2
+bool IdealreduceVector_anti_cyclic(ListPoint *p1, const ListPoint *p2, int num_rots){
+    ListPoint *lp = NewListPoint(p2->v.length());
+    CopyListPoint(lp, p2);
+
+    for(int i = 0; i < num_rots; i++){
+        if(reduceVector(p1, lp)){
+            DeleteListPoint(lp);
+            return true;
+        }
+        rotation_anti_cyclic(lp);
+    }
+
+    DeleteListPoint(lp);
+
+    return false;
 }
 
 void out2csv(string filename, vector<double> rec[], vector<string> index, string denotes){

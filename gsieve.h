@@ -41,6 +41,8 @@ class GSieve{
         long collisions_;
         long iterations_;
         long sample_vectors_;
+        long innerpros_;
+        long reductions_;
         vector<double> chk_time_;
         double timeL2V;
         double timeV2V;
@@ -58,12 +60,12 @@ class GSieve{
         void GaussSieve();
         void GaussSieve_Parallel();
 
-        void printL();
-        void printV();
         long getIterations(){ return iterations_; }
         long getCollisions(){ return collisions_; }
         long getListSize(){ return max_list_size_; }
         long getSampleVectors(){ return sample_vectors_; }
+        long getInnerpros(){ return innerpros_; }
+        long getReductions(){ return reductions_; }
         ListPoint* getMinVec();
         vector<double> getChkTime(){ return chk_time_; }
         double getTimeL2V(){ return timeL2V; }

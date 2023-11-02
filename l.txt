@@ -1,0 +1,59 @@
+dim: 58, index: 59
+59
+prime-cyclic lattice
+num_rots: 58
+4498625
+4431484
+list size
+vector    : [-258 690 53 -62 -206 -123 -208 -98 173 380 216 103 545 407 -332 -432 124 -303 -37 -156 269 -42 -313 160 522 429 569 146 -91 -122 98 69 -1 315 -305 -249 -59 505 -78 -99 -177 -68 57 -138 183 335 -269 -159 -549 74 155 -19 -118 341 336 -183 -120 -398]
+norm      : 4431484/2105.11
+times(ms) : 148717
+size of L : 311
+samples   : 484
+collisions: 231
+Iterations: 1378
+Reductions: 0
+Updatess  : 0
+
+
+< red2_rot2_parallel V <- rot(V) parallel >
+// V <- rot(V)
+    // cout << "V <- rot(V)" << endl;
+    vector<bool> vec_change_V(V.size(), false);
+    vector<ListPoint*> copy_V(V.size());
+    for(size_t i = 0; i < V.size(); i++){
+        ListPoint* lp = NewListPoint(m_);
+        CopyListPoint(lp, V[i]);
+        copy_V[i] = lp;
+    }
+    #pragma omp parallel for
+    for(size_t i = 0; i < V.size(); i++){
+        vector<ListPoint*> prots1(num_rots_+1), prots2(num_rots_+1);
+        for(int i = 0; i < num_rots_+1; i++){
+            prots1[i] = NewListPoint(m_);
+            prots2[i] = NewListPoint(m_);
+        }
+        genRotations(V[i], prots1);
+        for(size_t j = 0; j < copy_V.size(); j++){
+            if(i == j) continue;
+            genRotations(V[j], prots2);
+            for(int rot1 = 0; rot1 <= num_rots_; rot1++){
+                if(prots1[rot1]->norm < V[i]->norm) CopyListPoint(V[i], prots1[rot1]);
+                for(int rot2 = 0; rot2 <= num_rots_; rot2++){
+                    if(prots1[rot1]->norm >= prots2[rot2]->norm){
+                        if(reduceVector(prots1[rot1], prots2[rot2])){
+                            if(prots1[rot1]->norm < V[i]->norm){
+                                CopyListPoint(V[i], prots1[rot1]);
+                                vec_change_V[i] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for(int i = 0; i < num_rots_+1; i++){
+            DeleteListPoint(prots1[i]);
+            DeleteListPoint(prots2[i]);
+        }
+    }
+    for(ListPoint* v: copy_V) DeleteListPoint(v);

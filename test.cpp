@@ -10,6 +10,9 @@
 #include <ctime>
 #include <chrono>
 #include <cstdlib>
+#include <unistd.h>
+#include <algorithm>
+#include <omp.h>
 #include "tool.h"
 
 NTL_CLIENT
@@ -22,55 +25,18 @@ void print(vector<T> &v, string name){
 }
 
 int main(){
-    int exp_time = 100;
-    double all_time = 0;
-    for(int d = 0; d < exp_time; d++){
-        chrono::system_clock::time_point start, end;
-        int N = 10000;
-        vector<int> A(N);
-        vector<int*> A_ad(N), B;
-        for(int i = 0; i < N; i++) A[i] = i;
-        for(int i = 0; i < N; i++) A_ad[i] = &i;
-        // print(A, "A");
+    // cout << "使用可能な最大スレッド数：" << omp_get_max_threads() << endl;
 
-        srand(time(NULL));
-        vector<bool> c(N, false);
-        for(int i = 0; i < N; i++){
-            if(rand() % 2) c[i] = true;
-        }
-        // print(c, "c");
+    // int i, a[100];
+    // #pragma omp parallel for ordered num_threads(4)
+    // for(i = 0; i < 100; i++){
+    //     a[i] = 0;
+    //     #pragma omp ordered
+    //     printf("i=%d thread_num=%d\n", i, omp_get_thread_num());
+    // }
 
-        start = chrono::system_clock::now();
-#ifdef DEBUG
-        for(int i = 0; i < A_ad.size(); i++){
-            if(c[i]){
-                B.push_back(A_ad[i]);
-                A_ad.erase(A_ad.begin() + i);
-                c.erase(c.begin() + i);
-                i--;
-            }
-        }
-#endif
-#ifndef DEBUG
-        vector<int*> A_ad2;
-        for(int i = 0; i < A_ad.size(); i++){
-            if(c[i]){
-                B.push_back(A_ad[i]);
-            }
-            else{
-                A_ad2.push_back(A_ad[i]);
-            }
-        }
-        A_ad.swap(A_ad2);
-#endif
-        end = chrono::system_clock::now();
-        double elapsed = chrono::duration_cast<chrono::microseconds>(end-start).count()/1000;
-        all_time += elapsed;
-        // print(A, "A");
-        // print(B, "B");
-    }
-
-    cout << all_time << endl;
+    vector<ListPoint*> A;
+    sort(A.begin(), A.end());
 
     return 0;
 }

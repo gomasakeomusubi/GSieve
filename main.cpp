@@ -85,6 +85,9 @@ int main(int argc, char** argv){
         rec1[3].emplace_back(gs.getCollisions());
         rec1[4].emplace_back(gs.getIterations());
         rec1[5].emplace_back(gs.getMinVec()->norm);
+
+        cout << "Innerpros : " << gs.getInnerpros() << endl;
+        cout << "Reductions: " << gs.getReductions() << endl;
     }
     string denotes1 = "dim," + to_string(B.NumRows());
     out2csv("GS_test", rec1, index_GS, denotes1);

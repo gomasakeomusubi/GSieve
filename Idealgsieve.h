@@ -30,22 +30,34 @@ class IdealGSieve{
         int64 min_norm_;
         long num_rots_;
         vec_int64 modf_;
-        // mat_int64 rot_;
-        // vector<mat_int64> rot_;
-        int simu_samp_;
+        size_t simu_samp_;
         int concurrency_;
-        int64 IdealGaussReduce(ListPoint* p);
-        int64 IdealGaussReduce2(ListPoint* p);  // rotation前のノルムに関わらずrotation
-        int64 IdealGaussReduce4(ListPoint* p);  // rotationしたベクトルと互いに簡約
-        int64 red2_notInsert(ListPoint* p, int &p_pos);
-        bool check_red2_2(const ListPoint *p1, const ListPoint *p2);
-        int64 TripleReduce(ListPoint* p);
-        int64 GaussReduce_Parallel();
+        int64 IdealGaussReduce_rot1(ListPoint* p);
+        int64 IdealGaussReduce_rot2(ListPoint* p);
+        int64 IdealGaussReduce_rot2_modified(ListPoint* p);
+        int64 IdealGaussReduce_rot2_parallel();
+        int64 IdealGaussReduce_anti_cyclic(ListPoint* p);
+        int64 IdealGaussReduce_anti_cyclic_parallel();
+        int64 IdealTripleReduce_rot2_2red(ListPoint* p);
+        int64 IdealTripleReduce_rot2_2red_parallel();
+        int64 IdealTripleReduce_anti_cyclic_2red(ListPoint* p, size_t &p_pos);
+        bool Ideal_check_red3(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3, ListPoint *p_new);
+        int adjust_order_Ideal_check_red3(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3, ListPoint *p_new);
+        bool Ideal_check_red3_anti_cyclic(const ListPoint *p1, const ListPoint *p2, const ListPoint *p3, ListPoint *p_new);
+        int64 IdealTripleReduce_rot2_rot1(ListPoint* p);
+        int64 IdealTripleReduce_rot2_rot2(ListPoint* p);
+        int64 IdealTripleReduce_rot2_rot3(ListPoint* p);
+        int64 IdealTripleReduce_rot2_rot3_parallel();
+        int64 IdealTripleReduce_anti_cyclic_rot1(ListPoint* p);
+        int64 IdealTripleReduce_anti_cyclic_rot2(ListPoint* p);
+        int64 IdealTripleReduce_anti_cyclic_rot3(ListPoint* p);
         // statistics
         long max_list_size_;
         long collisions_;
         long iterations_;
         long sample_vectors_;
+        long reductions_;
+        long updates_;
         vector<double> chk_time_;
         double timeL2V;
         double timeV2V;
@@ -60,16 +72,15 @@ class IdealGSieve{
         void SetConcurrency(long num){ concurrency_ = num; }
         void SetSimultaneousSamples(long num){ simu_samp_ = num; }
 
-        // ListPoint* rotation(const ListPoint* lp, const mat_int64 &rot);
         void IdealGaussSieve();
-        void GaussSieve_Parallel();
+        void IdealGaussSieve_parallel();
 
-        void printL();
-        void printV();
         long getIterations(){ return iterations_; }
         long getCollisions(){ return collisions_; }
         long getListSize(){ return max_list_size_; }
         long getSampleVectors(){ return sample_vectors_; }
+        long getReductions(){ return reductions_; }
+        long getUpdates(){ return updates_; }
         ListPoint* getMinVec();
         vector<double> getChkTime(){ return chk_time_; }
         double getTimeL2V(){ return timeL2V; }
@@ -77,6 +88,8 @@ class IdealGSieve{
         double getTimeV2L(){ return timeV2L; }
 
         void TestRotation(ListPoint *p1, long rep);
+        void genRotations(const ListPoint *p1, vector<ListPoint*> &res);
+        void genRotations_anti_cyclic(const ListPoint *p1, vector<ListPoint*> &res);
 };
 
 #endif
